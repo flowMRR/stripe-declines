@@ -69,6 +69,35 @@ test("explain returns the flat shape, in both languages", () => {
   assert.equal(explain("hello world"), null);
 });
 
+test("a missing, null or non-string input finds nothing instead of throwing; an unknown locale is English", () => {
+  // Plain JavaScript callers pass whatever the error object holds; these must never crash a checkout.
+  for (const bad of [undefined, null, "", "   ", 42, {}, []] as unknown[]) {
+    assert.equal(explain(bad as string), null, String(bad));
+    assert.equal(findCode(bad as string), null, String(bad));
+    assert.equal(findNote(bad as string), null, String(bad));
+    assert.equal(findAdvice(bad as string), null, String(bad));
+    assert.equal(lookup(bad as string), undefined, String(bad));
+    assert.equal(customerMessage(bad as string), undefined, String(bad));
+    assert.equal(guideUrl(bad as string), undefined, String(bad));
+    assert.deepEqual(suggest(bad as string), [], String(bad));
+  }
+  assert.equal(templateFor(undefined), undefined);
+  assert.equal(templateFor(null), undefined);
+  // The README's checkout line, with neither field set.
+  const error = {} as { decline_code?: string; code?: string };
+  assert.equal(customerMessage(error.decline_code ?? error.code, "fr") ?? "fallback", "fallback");
+  // Locales: anything that is not French is English; French in any casing or with a region.
+  const en = DECLINE_BY_CODE.get("lost_card")!.en.customer;
+  const fr = DECLINE_BY_CODE.get("lost_card")!.fr.customer;
+  assert.equal(explain("lost_card", "de" as "en")!.customer, en);
+  assert.equal(customerMessage("lost_card", "de"), en);
+  assert.equal(customerMessage("lost_card", undefined as unknown as string), en);
+  assert.equal(customerMessage("lost_card", "fr-FR"), fr);
+  assert.equal(customerMessage("lost_card", "FR"), fr);
+  assert.equal(explain("lost_card", "fr-CA")!.guide, "https://flow-mrr.com/fr/tools/card-decline/lost-card");
+  assert.equal(templateFor(DECLINE_BY_CODE.get("expired_card")!, "xx"), templateFor(DECLINE_BY_CODE.get("expired_card")!, "en"));
+});
+
 test("Stripe's advice_code, when pasted, decides the retry verdict", () => {
   assert.equal(findAdvice('{"decline_code":"do_not_honor","advice_code":"try_again_later"}'), "try_again_later");
   assert.equal(findAdvice("decline_code: insufficient_funds"), null);

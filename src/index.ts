@@ -77,26 +77,40 @@ export const GUIDE_SLUGS: Readonly<Record<string, string>> = guides;
 const GUIDES_BASE = "https://flow-mrr.com";
 
 /** The long-form guide for a code, when there is one. */
-export const guideUrl = (code: string, locale: Locale = "en"): string | undefined => {
-  const slug = GUIDE_SLUGS[normalise(code)];
-  return slug ? `${GUIDES_BASE}/${locale}/tools/card-decline/${slug}` : undefined;
+export const guideUrl = (code: string | null | undefined, locale: Locale | string = "en"): string | undefined => {
+  const slug = GUIDE_SLUGS[normalise(text(code))];
+  return slug ? `${GUIDES_BASE}/${loc(locale)}/tools/card-decline/${slug}` : undefined;
 };
 
+/**
+ * Inputs come from error objects and request params as often as from typed code, so
+ * every entry point accepts a missing or non-string value (it finds nothing) and an
+ * unknown locale (English). `fr`, `fr-FR` and `FR` are French; anything else is English.
+ */
+const text = (input: unknown): string => (typeof input === "string" ? input : input == null ? "" : String(input));
+const loc = (locale: unknown): Locale => (typeof locale === "string" && /^fr\b/i.test(locale) ? "fr" : "en");
+
 /** The customer email for a code: its own when the category's does not fit, else the category's. */
-export const templateFor = (d: DeclineCode, locale: Locale = "en"): string => d.template?.[locale] ?? CATEGORIES[d.category][locale].template;
+export function templateFor(d: DeclineCode, locale?: Locale | string): string;
+export function templateFor(d: DeclineCode | null | undefined, locale?: Locale | string): string | undefined;
+export function templateFor(d: DeclineCode | null | undefined, locale: Locale | string = "en"): string | undefined {
+  if (!d) return undefined;
+  const l = loc(locale);
+  return d.template?.[l] ?? CATEGORIES[d.category][l].template;
+}
 
 /**
  * The short customer-facing message for a code, to show at checkout, on a billing
- * page or in a support reply; `undefined` when the code is unknown. Accepts the
- * same spellings as `lookup`.
+ * page or in a support reply; `undefined` when the code is unknown or missing.
+ * Accepts the same spellings as `lookup`.
  */
-export const customerMessage = (code: string, locale: Locale = "en"): string | undefined => lookup(code)?.[locale].customer;
+export const customerMessage = (code: string | null | undefined, locale: Locale | string = "en"): string | undefined => lookup(code)?.[loc(locale)].customer;
 
 /** `do not honor`, `Do-Not-Honor` and `do_not_honor` name the same code. */
 const normalise = (value: string) => value.trim().toLowerCase().replace(/[\s-]+/g, "_");
 
-/** A decline code by its identifier (spaces and hyphens accepted); `undefined` when unknown. */
-export const lookup = (code: string): DeclineCode | undefined => DECLINE_BY_CODE.get(normalise(code));
+/** A decline code by its identifier (spaces and hyphens accepted); `undefined` when unknown or missing. */
+export const lookup = (code: string | null | undefined): DeclineCode | undefined => DECLINE_BY_CODE.get(normalise(text(code)));
 
 /**
  * Stripe's own customer-facing messages (English, and the French ones Checkout
@@ -155,32 +169,33 @@ const fieldValue = (text: string, name: string) => {
  * only code in it is the generic `card_declined`: a Radar-blocked charge carries
  * `failure_code: card_declined`, and "retry likely" would be the wrong advice.
  */
-export function findCode(input: string): DeclineCode | null {
-  const hit = findCodeIn(input);
-  return hit?.code === "card_declined" && findNote(input) ? null : hit;
+export function findCode(input: string | null | undefined): DeclineCode | null {
+  const raw = text(input);
+  const hit = findCodeIn(raw);
+  return hit?.code === "card_declined" && findNote(raw) ? null : hit;
 }
 
 function findCodeIn(input: string): DeclineCode | null {
-  let text = input.trim().toLowerCase();
-  if (!text) return null;
-  const direct = DECLINE_BY_CODE.get(text) ?? DECLINE_BY_CODE.get(normalise(text)) ?? BY_LABEL.get(fold(text));
+  let s = input.trim().toLowerCase();
+  if (!s) return null;
+  const direct = DECLINE_BY_CODE.get(s) ?? DECLINE_BY_CODE.get(normalise(s)) ?? BY_LABEL.get(fold(s));
   if (direct) return direct;
   // A structured payload: trust its fields over any code-looking word elsewhere in it.
   for (const name of REASON_FIELDS) {
-    const value = fieldValue(text, name);
+    const value = fieldValue(s, name);
     const found = value ? DECLINE_BY_CODE.get(value) : undefined;
     if (found && found.code !== "card_declined") return found;
   }
   // `advice_code` holds Stripe's retry advice (try_again_later, do_not_try_again…), not the
   // decline reason; two of its values are also decline codes, so drop it before scanning.
-  text = text.replace(new RegExp(field("advice_code", "[a-z_]+['\"]?"), "g"), " ");
+  s = s.replace(new RegExp(field("advice_code", "[a-z_]+['\"]?"), "g"), " ");
   // A dispute's or refund's reason is not a decline either.
-  if (!text.includes("outcome")) text = text.replace(new RegExp(field("reason", "[a-z_]+['\"]?"), "g"), " ");
+  if (!s.includes("outcome")) s = s.replace(new RegExp(field("reason", "[a-z_]+['\"]?"), "g"), " ");
   // Longest match first so "card_declined" does not shadow "decline_code: do_not_honor".
   const codes = [...DECLINE_BY_CODE.keys()].sort((a, b) => b.length - a.length);
-  const hit = codes.filter((c) => c !== "card_declined").find((c) => text.includes(c)) ?? (text.includes("card_declined") ? "card_declined" : null);
+  const hit = codes.filter((c) => c !== "card_declined").find((c) => s.includes(c)) ?? (s.includes("card_declined") ? "card_declined" : null);
   if (hit) return DECLINE_BY_CODE.get(hit) ?? null;
-  const message = text.replace(/[‘’]/g, "'");
+  const message = s.replace(/[‘’]/g, "'");
   const byMessage = MESSAGE_PATTERNS.find(([pattern]) => pattern.test(message));
   return byMessage ? DECLINE_BY_CODE.get(byMessage[1]) ?? null : null;
 }
@@ -192,14 +207,14 @@ const ADVICE: Record<Advice, Retry> = { do_not_try_again: "no", try_again_later:
  * one of the three documented values; `null` otherwise. It is Stripe's own verdict
  * for that attempt, so it is worth more than the per-code table.
  */
-export function findAdvice(input: string): Advice | null {
-  const value = fieldValue(input.trim().toLowerCase(), "advice_code");
+export function findAdvice(input: string | null | undefined): Advice | null {
+  const value = fieldValue(text(input).trim().toLowerCase(), "advice_code");
   return value && value in ADVICE ? (value as Advice) : null;
 }
 
 /** Codes whose identifier or label (English or French, accents ignored) contains the input. */
-export function suggest(input: string, limit = 6): DeclineCode[] {
-  const raw = fold(input);
+export function suggest(input: string | null | undefined, limit = 6): DeclineCode[] {
+  const raw = fold(text(input));
   if (!raw) return [];
   const asCode = raw.replace(/[\s-]+/g, "_");
   return DECLINE_CODES.filter((entry) => entry.code.includes(asCode) || fold(entry.en.label).includes(raw) || fold(entry.fr.label).includes(raw)).slice(0, limit);
@@ -212,11 +227,11 @@ export function suggest(input: string, limit = 6): DeclineCode[] {
  * A Charge Radar blocked (`outcome.type: "blocked"`) gets the rule note when nothing more
  * specific matched.
  */
-export function findNote(input: string): DeclineNote | null {
-  const raw = input.trim().toLowerCase();
+export function findNote(input: string | null | undefined): DeclineNote | null {
+  const raw = text(input).trim().toLowerCase();
   if (!raw) return null;
-  const text = raw.replace(/[\s-]+/g, "_");
-  const direct = DECLINE_NOTES.find((n) => (n.field ? fieldValue(raw, n.field) === n.term : text.includes(n.term)));
+  const joined = raw.replace(/[\s-]+/g, "_");
+  const direct = DECLINE_NOTES.find((n) => (n.field ? fieldValue(raw, n.field) === n.term : joined.includes(n.term)));
   if (direct) return direct;
   return raw.includes("outcome") && fieldValue(raw, "type") === "blocked" ? DECLINE_NOTES.find((n) => n.term === "rule") ?? null : null;
 }
@@ -247,12 +262,14 @@ export type Explanation = {
 /**
  * One call for the common case: a code, a label, a message or a pasted payload
  * in, a flat explanation out (`null` when nothing in the text is a decline).
- * When the payload carries Stripe's `advice_code`, `retry` follows it.
+ * When the payload carries Stripe's `advice_code`, `retry` follows it. A missing
+ * input gives `null`; an unknown locale gives English.
  */
-export function explain(input: string, locale: Locale = "en"): Explanation | null {
+export function explain(input: string | null | undefined, locale: Locale | string = "en"): Explanation | null {
   const d = findCode(input);
   if (!d) return null;
-  const cat = CATEGORIES[d.category][locale];
+  const l = loc(locale);
+  const cat = CATEGORIES[d.category][l];
   const advice = findAdvice(input) ?? undefined;
   return {
     code: d.code,
@@ -263,11 +280,11 @@ export function explain(input: string, locale: Locale = "en"): Explanation | nul
     retry: advice ? ADVICE[advice] : d.retry,
     retrySource: advice ? "advice_code" : "code",
     ...(advice ? { advice } : {}),
-    label: d[locale].label,
-    meaning: d[locale].meaning,
-    action: d[locale].action,
-    customer: d[locale].customer,
-    email: templateFor(d, locale),
-    guide: guideUrl(d.code, locale),
+    label: d[l].label,
+    meaning: d[l].meaning,
+    action: d[l].action,
+    customer: d[l].customer,
+    email: templateFor(d, l),
+    guide: guideUrl(d.code, l),
   };
 }

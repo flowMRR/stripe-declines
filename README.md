@@ -44,6 +44,8 @@ import { customerMessage } from "stripe-declines";
 const message = customerMessage(error.decline_code ?? error.code, "fr") ?? genericMessage;
 ```
 
+Every function accepts a missing or non-string input and finds nothing (`null`, `undefined` or `[]`) rather than throwing, so the line above is safe when the error carries neither field. The locale is `"en"` or `"fr"`; `fr-FR` counts as French and anything else as English.
+
 The lower-level pieces:
 
 ```ts
