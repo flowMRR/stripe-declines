@@ -16,7 +16,8 @@ rmSync(join(root, "dist"), { recursive: true, force: true });
 node(join(root, "scripts", "gen-data.mjs"));
 node(tsc, "-p", "tsconfig.esm.json");
 node(tsc, "-p", "tsconfig.cjs.json");
-// The package is "type": "module"; the CommonJS build says otherwise for itself.
+// The package is "type": "module"; the CommonJS build says otherwise for itself, which
+// also makes its own index.d.ts CommonJS-typed for require() consumers (publint, attw).
 mkdirSync(join(root, "dist", "cjs"), { recursive: true });
 writeFileSync(join(root, "dist", "cjs", "package.json"), '{ "type": "commonjs" }\n');
 console.log("build: dist/esm and dist/cjs written");

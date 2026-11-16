@@ -98,6 +98,91 @@ test("a missing, null or non-string input finds nothing instead of throwing; an 
   assert.equal(templateFor(DECLINE_BY_CODE.get("expired_card")!, "xx"), templateFor(DECLINE_BY_CODE.get("expired_card")!, "en"));
 });
 
+test("every code resolves from its own identifier, its labels and a decline_code field, and labels are unique", () => {
+  const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  for (const l of ["en", "fr"] as const) {
+    const labels = DECLINE_CODES.map((d) => fold(d[l].label));
+    assert.equal(new Set(labels).size, labels.length, `${l} labels must be unique, or a label lookup is ambiguous`);
+  }
+  for (const d of DECLINE_CODES) {
+    assert.equal(findCode(d.code)?.code, d.code);
+    assert.equal(findCode(d.code.toUpperCase())?.code, d.code, `${d.code} upper-case`);
+    assert.equal(findCode(d.en.label)?.code, d.code, d.en.label);
+    assert.equal(findCode(d.fr.label)?.code, d.code, d.fr.label);
+    assert.equal(findCode(`{"code":"card_declined","decline_code":"${d.code}"}`)?.code, d.code, `${d.code} in a payload`);
+    assert.equal(lookup(d.code.replace(/_/g, " "))?.code, d.code);
+    for (const l of ["en", "fr"] as const) {
+      const x = explain(d.code, l)!;
+      assert.equal(x.categoryLabel, CATEGORIES[d.category][l].label, `${d.code} ${l}`);
+      assert.equal(x.customer, d[l].customer);
+      assert.equal(x.email, templateFor(d, l));
+      assert.equal(x.retrySource, "code");
+      for (const k of ["label", "meaning", "action", "customer", "email", "categorySummary"] as const) assert.ok(x[k].trim(), `${d.code} ${l} ${k}`);
+    }
+  }
+});
+
+test("payload shapes from the API, webhooks and the Stripe CLI resolve to the decline reason", () => {
+  for (const [input, code] of [
+    // PaymentIntent with last_payment_error.
+    ['{"id":"pi_3Q","object":"payment_intent","last_payment_error":{"code":"card_declined","decline_code":"insufficient_funds","message":"Your card has insufficient funds.","type":"card_error"},"status":"requires_payment_method"}', "insufficient_funds"],
+    // A webhook event wrapping a failed Charge.
+    ['{"type":"charge.failed","data":{"object":{"object":"charge","failure_code":"card_declined","failure_message":"Your card was declined.","outcome":{"network_status":"declined_by_network","reason":"generic_decline","type":"issuer_declined"}}}}', "generic_decline"],
+    // An invoice.payment_failed event where only the message survived.
+    ['{"type":"invoice.payment_failed","data":{"object":{"last_finalization_error":null,"attempt_count":2,"status":"open"}}} Your card has expired.', "expired_card"],
+    // A Stripe CLI log line and a query-string style line.
+    ["2026-11-16 10:12:03   --> charge.failed [evt_1QabcDEF] decline_code=do_not_honor advice_code=try_again_later", "do_not_honor"],
+    // CRLF, tabs and odd spacing from a pasted dashboard or email.
+    ['"decline_code":\r\n\t"lost_card",\r\n"advice_code": "do_not_try_again"', "lost_card"],
+    // Python repr with None and single quotes.
+    ["{'code': 'card_declined', 'decline_code': 'authentication_required', 'doc_url': None}", "authentication_required"],
+    // Only a network-style explanation and the message.
+    ["Payment failed - Your card's security code is incorrect.", "incorrect_cvc"],
+  ] as const) {
+    assert.equal(findCode(input)?.code, code, input);
+  }
+  // A blocked charge keeps its note even when a message is around.
+  const blocked = '{"type":"charge.failed","data":{"object":{"failure_code":"card_declined","failure_message":"Your card was declined.","outcome":{"reason":"highest_risk_level","risk_level":"highest","type":"blocked"}}}}';
+  assert.equal(findCode(blocked), null);
+  assert.equal(findNote(blocked)?.term, "highest_risk_level");
+});
+
+test("large or hostile input is handled quickly and finds nothing or the right code", () => {
+  const junk = "x".repeat(200_000) + " ".repeat(1000) + "y".repeat(200_000);
+  let t = Date.now();
+  assert.equal(findCode(junk), null);
+  assert.equal(findNote(junk), null);
+  assert.equal(explain(junk), null);
+  assert.ok(Date.now() - t < 1000, `garbage took ${Date.now() - t}ms`);
+  t = Date.now();
+  assert.equal(findCode(`${junk} decline_code: expired_card`)?.code, "expired_card");
+  assert.ok(Date.now() - t < 1000, `needle took ${Date.now() - t}ms`);
+  // Regex-sensitive characters and quotes in the text do not break the field scanner.
+  assert.equal(findCode('message: "Card (****4242) declined [decline_code=do_not_honor] $0.00 ^$"')?.code, "do_not_honor");
+  assert.equal(findCode("(((("), null);
+});
+
+test("codes.json is clean text: no stray whitespace, every sentence ends, notes complete", () => {
+  const texts: [string, string][] = [];
+  for (const d of DECLINE_CODES) for (const l of ["en", "fr"] as const) {
+    for (const k of ["label", "meaning", "action", "customer"] as const) texts.push([`${d.code}.${l}.${k}`, d[l][k]]);
+    if (d.template) texts.push([`${d.code}.template.${l}`, d.template[l]]);
+  }
+  for (const [cat, info] of Object.entries(CATEGORIES)) for (const l of ["en", "fr"] as const) for (const k of ["label", "summary", "template"] as const) texts.push([`${cat}.${l}.${k}`, info[l][k]]);
+  for (const [where, s] of texts) {
+    assert.equal(s, s.trim(), `${where}: leading or trailing whitespace`);
+    assert.doesNotMatch(s, /  |\t/, `${where}: double space or tab`);
+    assert.doesNotMatch(s, /[`<>]/, `${where}: markup`);
+    if (where.endsWith(".meaning") || where.endsWith(".action") || where.endsWith(".customer") || where.endsWith(".summary")) assert.match(s, /[.!?)]$/, `${where}: does not end a sentence`);
+  }
+  for (const n of DECLINE_NOTES) {
+    assert.match(n.term, /^[a-z_]+$/);
+    assert.ok(n.en.trim() && n.fr.trim(), n.term);
+    if (n.field) assert.equal(n.field, "reason", n.term);
+  }
+  assert.equal(new Set(DECLINE_NOTES.map((n) => n.term)).size, DECLINE_NOTES.length);
+});
+
 test("Stripe's advice_code, when pasted, decides the retry verdict", () => {
   assert.equal(findAdvice('{"decline_code":"do_not_honor","advice_code":"try_again_later"}'), "try_again_later");
   assert.equal(findAdvice("decline_code: insufficient_funds"), null);

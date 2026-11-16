@@ -41,6 +41,20 @@ test("--lang fr, --email and --json", () => {
   assert.match(advised.out, /retry: no \(advice_code do_not_try_again\)/);
 });
 
+test("--json output is complete for every code in both languages and options come in any order", () => {
+  for (const code of ["do_not_honor", "expired_card", "lost_card", "merchant_blacklist", "card_declined"]) {
+    for (const lang of ["en", "fr"]) {
+      const { out, code: exit } = run(["--json", "--lang", lang, code]);
+      assert.equal(exit, 0);
+      const parsed = JSON.parse(out);
+      for (const k of ["code", "category", "categoryLabel", "categorySummary", "fixer", "retry", "retrySource", "label", "meaning", "action", "customer", "email"]) assert.ok(parsed[k], `${code} ${lang} ${k}`);
+      assert.ok(!("advice" in parsed), "no advice without an advice_code in the input");
+    }
+  }
+  assert.equal(run(["expired_card", "--lang", "fr", "--customer"]).out, run(["--customer", "--lang=fr", "expired_card"]).out);
+  assert.match(run(["Carte", "expirée"]).out, /^expired_card — /, "several words are joined into one input");
+});
+
 test("stdin is used when no input is given on the command line", () => {
   const { out, code } = run(["--json"], 'decline_code: "insufficient_funds"\n');
   assert.equal(code, 0);

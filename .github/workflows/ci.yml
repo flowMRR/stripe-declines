@@ -23,3 +23,6 @@ jobs:
       - run: npm run build
       - run: node dist/esm/cli.js do_not_honor
       - run: node -e "const {explain}=require('./dist/cjs/index.js');if(explain('do_not_honor').retry!=='likely')process.exit(1)"
+      # The package as consumers get it: exports map, ESM/CJS types, CLI from the tarball.
+      - run: npx --yes publint@0.3.12 --strict
+      - run: node scripts/check-consumer.mjs
