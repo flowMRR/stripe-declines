@@ -1,0 +1,69 @@
+{
+  "name": "stripe-declines",
+  "version": "0.1.0",
+  "description": "Stripe card decline codes explained for failed-payment recovery: category, who can fix it, whether a retry can succeed, and what to tell the customer. Parses pasted errors, Charge objects and webhook payloads. English and French.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./codes.json": "./codes.json",
+    "./guides.json": "./guides.json",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "stripe-declines": "./dist/esm/cli.js"
+  },
+  "files": [
+    "dist",
+    "codes.json",
+    "guides.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "gen": "node scripts/gen-data.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/gen-data.mjs && tsx --test test/index.test.ts test/cli.test.ts test/parity.test.ts",
+    "typecheck": "node scripts/gen-data.mjs && tsc -p tsconfig.esm.json --noEmit",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flowmrr/stripe-declines.git"
+  },
+  "homepage": "https://flow-mrr.com/en/tools/card-decline",
+  "bugs": {
+    "url": "https://github.com/flowmrr/stripe-declines/issues"
+  },
+  "author": "FlowMRR (https://flow-mrr.com)",
+  "keywords": [
+    "stripe",
+    "decline",
+    "decline-code",
+    "decline-codes",
+    "card-declined",
+    "failed-payment",
+    "dunning",
+    "payment-recovery",
+    "smart-retries",
+    "subscription",
+    "saas",
+    "billing"
+  ],
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.20.6",
+    "typescript": "^5"
+  }
+}

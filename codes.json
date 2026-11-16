@@ -1,0 +1,997 @@
+{
+  "reviewed": "2026-11-12",
+  "categories": {
+    "soft": {
+      "en": {
+        "label": "Temporary refusal",
+        "summary": "The bank said no without a lasting reason. A later retry, such as one scheduled by Stripe's Smart Retries, often succeeds; a gentle reminder helps.",
+        "template": "Hi {name},\n\nYour bank declined our latest payment for {product}. This can be temporary, and we may try again automatically over the next few days. If it keeps failing, your bank can tell you why. You can also update or confirm your card here: {link}\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "label": "Refus temporaire",
+        "summary": "Le refus peut être temporaire. Une relance automatique Stripe peut aboutir si la situation évolue ; un rappel courtois permet aussi au client de vérifier sa carte.",
+        "template": "Bonjour {name},\n\nVotre banque a refusé notre dernière tentative de paiement pour {product}. Ce refus peut être temporaire. Si les relances automatiques sont activées, une nouvelle tentative aura lieu dans les prochains jours. Si le refus se répète, votre banque pourra vous en indiquer la raison. Vous pouvez également vérifier ou mettre à jour votre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    "funds": {
+      "en": {
+        "label": "Insufficient funds",
+        "summary": "The balance or available credit did not cover the charge at that moment. A retry a few days later often succeeds once the account is topped up.",
+        "template": "Hi {name},\n\nWe could not collect the payment for {product} because the card had insufficient funds at the time. We may try again in a few days. If you prefer, you can pay now or switch cards here: {link}\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "label": "Fonds insuffisants",
+        "summary": "Le solde ou le crédit disponible ne couvrait pas le paiement au moment de la tentative. Une nouvelle tentative peut être utile après un approvisionnement du compte.",
+        "template": "Bonjour {name},\n\nLe paiement pour {product} n'a pas abouti. Votre banque a signalé que les fonds disponibles étaient insuffisants au moment de la tentative. Vous pouvez vérifier le solde du compte ou utiliser une autre carte pour régler le paiement ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    "card": {
+      "en": {
+        "label": "Card update needed",
+        "summary": "The card on file is expired, wrong or closed. Retrying will fail every time; only the customer can replace it.",
+        "template": "Hi {name},\n\nThe card we have on file for {product} can no longer be charged (it looks expired or invalid). To keep your access, please add a new card here: {link}\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "label": "Carte à mettre à jour",
+        "summary": "La carte enregistrée ou ses informations nécessitent une vérification : expiration, erreur de saisie ou compte clôturé. Demandez au client de corriger les informations ou d'ajouter une autre carte avant de réessayer.",
+        "template": "Bonjour {name},\n\nNous n'avons pas pu effectuer le paiement pour {product} avec la carte enregistrée. Merci de vérifier ses informations ou d'ajouter une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    "limit": {
+      "en": {
+        "label": "Limit reached",
+        "summary": "The charge went over a balance, credit or transaction limit set on the card. The issuer keeps refusing the same card until the customer changes that limit, so do not count on a retry: ask for another card or a higher limit.",
+        "template": "Hi {name},\n\nYour bank declined the payment for {product} because a limit on your card was reached. You can pay with another card here, or ask your bank to raise the limit and then pay with the same link: {link}\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "label": "Limite atteinte",
+        "summary": "Le paiement dépasse une limite de solde, de crédit ou de transaction fixée sur la carte. La banque continue de refuser cette carte tant que le client ne modifie pas la limite : ne comptez pas sur une nouvelle tentative, demandez une autre carte ou une limite plus élevée.",
+        "template": "Bonjour {name},\n\nVotre banque a refusé le paiement pour {product} car une limite de votre carte a été atteinte. Vous pouvez payer avec une autre carte ici, ou demander à votre banque de relever la limite puis utiliser le même lien : {link}\n\nMerci,\n{company}"
+      }
+    },
+    "restricted": {
+      "en": {
+        "label": "Card not allowed",
+        "summary": "The card cannot be used for this kind of payment (online, recurring or international), or the bank restricted it. Retrying the same card will not help; the customer has the restriction lifted or uses another card.",
+        "template": "Hi {name},\n\nYour bank reported that the card on file can't be used for this payment for {product}. You can ask your bank to allow it, or pay with another card here: {link}\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "label": "Carte non autorisée",
+        "summary": "La carte ne peut pas être utilisée pour ce type de paiement (en ligne, récurrent ou international), ou la banque lui a appliqué une restriction. Une nouvelle tentative avec la même carte n'aboutira pas : le client doit faire lever la restriction ou utiliser une autre carte.",
+        "template": "Bonjour {name},\n\nVotre banque indique que la carte enregistrée ne peut pas être utilisée pour ce paiement pour {product}. Vous pouvez demander à votre banque de l'autoriser, ou payer avec une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    "auth": {
+      "en": {
+        "label": "Authentication required",
+        "summary": "The bank wants the cardholder to confirm the payment (3-D Secure / SCA). Stripe cannot retry headlessly; the customer must complete it from the hosted invoice.",
+        "template": "Hi {name},\n\nYour bank asked for a quick confirmation before approving the payment for {product}. It takes a few seconds: {link}\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "label": "Authentification requise",
+        "summary": "La banque demande au titulaire de confirmer le paiement via 3-D Secure ou l'authentification forte (SCA). Une relance automatique ne remplace pas cette étape : envoyez au client le lien vers la page de paiement de sa facture Stripe.",
+        "template": "Bonjour {name},\n\nVotre banque demande une authentification pour autoriser le paiement pour {product}. Merci d'ouvrir ce lien et de suivre les étapes de confirmation : {link}\n\nMerci,\n{company}"
+      }
+    },
+    "fraud": {
+      "en": {
+        "label": "Blocked card",
+        "summary": "Lost, stolen, flagged or withdrawn. Do not retry: it can hurt your acceptance rate. Ask for a different card, through a neutral message.",
+        "template": "Hi {name},\n\nWe were unable to process the payment for {product} with the card on file. Please get in touch so we can sort it out. If you would like to keep your subscription, you can add a different card here: {link}\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "label": "Carte bloquée",
+        "summary": "La carte est bloquée ou signalée, ou l'autorisation de paiement a été retirée. Ne relancez pas le paiement : les tentatives répétées peuvent réduire votre taux d'autorisation. Contactez le client avec un message neutre.",
+        "template": "Bonjour {name},\n\nNous n'avons pas pu traiter le paiement pour {product} avec la carte enregistrée. Merci de nous contacter pour faire le point. Si vous souhaitez poursuivre votre abonnement, vous pouvez ajouter une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    "merchant": {
+      "en": {
+        "label": "Check your side",
+        "summary": "Check the amount, the currency, the card types you accept and your Stripe or Radar setup before retrying. Depending on the code, the customer may also need another card.",
+        "template": "Hi {name},\n\nOur payment attempt for {product} did not go through. We are checking the payment details and will let you know if anything is needed from you.\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "label": "Vérification côté marchand",
+        "summary": "Vérifiez le montant, la devise, les types de cartes acceptés et votre configuration Stripe ou Radar avant de réessayer. Selon le code, une autre carte peut aussi être nécessaire.",
+        "template": "Bonjour {name},\n\nLa tentative de paiement pour {product} n'a pas abouti. Nous vérifions les paramètres du paiement et vous tiendrons au courant si une action est nécessaire de votre part.\n\nMerci,\n{company}"
+      }
+    }
+  },
+  "codes": [
+    {
+      "code": "generic_decline",
+      "category": "soft",
+      "fixer": "bank",
+      "retry": "likely",
+      "en": {
+        "label": "Generic decline",
+        "meaning": "The issuer refused without giving a reason. The most common decline code, and often temporary. Stripe also returns it when Radar blocked the payment.",
+        "action": "Let Smart Retries run and send a reminder with the card-update link. If it keeps failing, ask the customer to contact their bank or use another card."
+      },
+      "fr": {
+        "label": "Refus générique",
+        "meaning": "La banque émettrice a refusé le paiement sans préciser la raison. Le refus peut être temporaire. Stripe renvoie aussi ce code lorsque Radar a bloqué le paiement.",
+        "action": "Laissez les relances automatiques Stripe s'effectuer si elles sont activées et envoyez un rappel avec le lien de mise à jour de la carte. Si le refus se répète, invitez le client à contacter sa banque ou à utiliser une autre carte."
+      }
+    },
+    {
+      "code": "do_not_honor",
+      "category": "soft",
+      "fixer": "bank",
+      "retry": "likely",
+      "en": {
+        "label": "Do not honor",
+        "meaning": "An opaque 'no' from the bank, often a temporary lock, a spending rule or a risk score on their side. Despite the name, a later retry often succeeds.",
+        "action": "Retry on Stripe's schedule. Suggest the customer calls their bank if it fails twice."
+      },
+      "fr": {
+        "label": "Refus bancaire",
+        "meaning": "La banque a refusé le paiement sans préciser la cause. Il peut s'agir d'un blocage temporaire, d'une limite de dépenses ou d'une évaluation du risque. Une nouvelle tentative peut aboutir, sans garantie.",
+        "action": "Suivez le calendrier de relance de Stripe. Après deux échecs, invitez le client à contacter sa banque."
+      }
+    },
+    {
+      "code": "card_declined",
+      "category": "soft",
+      "fixer": "bank",
+      "retry": "maybe",
+      "en": {
+        "label": "Card declined",
+        "meaning": "Stripe's umbrella error code. The real reason is in decline_code; when that is empty, treat it like a generic decline.",
+        "action": "Look at decline_code first. Without one, retry and send a reminder."
+      },
+      "fr": {
+        "label": "Carte refusée",
+        "meaning": "Il s'agit du code d'erreur général de Stripe pour les refus de carte. Le champ decline_code, lorsqu'il est renseigné, précise la raison du refus.",
+        "action": "Consultez d'abord decline_code pour adapter votre action. S'il est absent, suivez les conseils relatifs à un refus générique et envoyez un rappel au client."
+      }
+    },
+    {
+      "code": "insufficient_funds",
+      "category": "funds",
+      "fixer": "customer",
+      "retry": "likely",
+      "en": {
+        "label": "Insufficient funds",
+        "meaning": "The account did not have enough balance or credit at the time of the charge.",
+        "action": "Retry in a few days rather than the same day; Stripe's Smart Retries pick the timing for you if enabled. A friendly heads-up with a pay-now link helps."
+      },
+      "fr": {
+        "label": "Fonds insuffisants",
+        "meaning": "Le solde du compte ou le crédit disponible était insuffisant au moment de la tentative de paiement.",
+        "action": "Une nouvelle tentative dans quelques jours peut être utile si les fonds disponibles ont augmenté. Envoyez un rappel courtois avec un lien permettant de régler le paiement ou de changer de carte."
+      }
+    },
+    {
+      "code": "withdrawal_count_limit_exceeded",
+      "category": "limit",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Withdrawal limit exceeded",
+        "meaning": "The customer went over the balance or credit limit available on their card.",
+        "action": "Do not count on a retry with this card. Ask the customer to pay with another card or payment method."
+      },
+      "fr": {
+        "label": "Limite de retraits dépassée",
+        "meaning": "Le client a dépassé le solde ou la limite de crédit disponible sur sa carte.",
+        "action": "Ne comptez pas sur une nouvelle tentative avec cette carte. Demandez au client de payer avec une autre carte ou un autre moyen de paiement."
+      }
+    },
+    {
+      "code": "card_velocity_exceeded",
+      "category": "limit",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Card limit exceeded",
+        "meaning": "The customer went over the balance, credit limit or transaction amount limit available on their card.",
+        "action": "Do not count on a retry with this card: the issuer keeps refusing until the customer changes the limit. Ask them to pay with another card, or to have their bank raise the limit first."
+      },
+      "fr": {
+        "label": "Limite de la carte dépassée",
+        "meaning": "Le client a dépassé le solde, la limite de crédit ou le plafond de transaction disponible sur sa carte.",
+        "action": "Ne comptez pas sur une nouvelle tentative avec cette carte : la banque continue de refuser tant que la limite n'est pas modifiée. Demandez au client de payer avec une autre carte, ou de faire relever la limite par sa banque au préalable."
+      }
+    },
+    {
+      "code": "try_again_later",
+      "category": "soft",
+      "fixer": "bank",
+      "retry": "likely",
+      "en": {
+        "label": "Try again later",
+        "meaning": "Declined for a reason the issuer did not give; Stripe's advice is to retry later and, if it keeps failing, have the customer contact their bank. Stripe lists this code as deprecated, so you mostly see it on older payments.",
+        "action": "Nothing to do: Stripe's retry schedule handles it. Watch for a second failure."
+      },
+      "fr": {
+        "label": "Réessayer plus tard",
+        "meaning": "Refus sans motif communiqué par la banque ; Stripe conseille de retenter plus tard, puis, si le refus persiste, d'inviter le client à contacter sa banque. Stripe indique que ce code est obsolète : il apparaît surtout sur des paiements anciens.",
+        "action": "Laissez Stripe suivre le calendrier de relance si les relances automatiques sont activées ; sinon, prévoyez une nouvelle tentative plus tard. Vérifiez le résultat."
+      }
+    },
+    {
+      "code": "processing_error",
+      "category": "soft",
+      "fixer": "bank",
+      "retry": "likely",
+      "en": {
+        "label": "Processing error",
+        "meaning": "A transient error while the payment was being processed, usually on the issuer or network side.",
+        "action": "Retry. If the same card fails this way repeatedly, ask for another."
+      },
+      "fr": {
+        "label": "Erreur de traitement",
+        "meaning": "Une erreur temporaire s'est produite lors du traitement du paiement, généralement du côté de la banque émettrice ou du réseau de cartes.",
+        "action": "Réessayez ultérieurement. Si cette erreur se répète avec la même carte, demandez au client d'en utiliser une autre."
+      }
+    },
+    {
+      "code": "issuer_not_available",
+      "category": "soft",
+      "fixer": "bank",
+      "retry": "likely",
+      "en": {
+        "label": "Issuer not available",
+        "meaning": "The customer's bank could not be reached to authorize the payment.",
+        "action": "Retry later; this is almost always transient."
+      },
+      "fr": {
+        "label": "Banque émettrice indisponible",
+        "meaning": "La banque du client n'a pas pu être jointe pour autoriser le paiement.",
+        "action": "Réessayez plus tard : l'indisponibilité peut être temporaire."
+      }
+    },
+    {
+      "code": "reenter_transaction",
+      "category": "soft",
+      "fixer": "bank",
+      "retry": "likely",
+      "en": {
+        "label": "Re-enter transaction",
+        "meaning": "The issuer could not process the payment and asks for it to be submitted again.",
+        "action": "Retry as is."
+      },
+      "fr": {
+        "label": "Transaction à soumettre à nouveau",
+        "meaning": "La banque émettrice n'a pas pu traiter le paiement et demande une nouvelle tentative.",
+        "action": "Soumettez à nouveau le paiement avec les mêmes informations."
+      }
+    },
+    {
+      "code": "approve_with_id",
+      "category": "soft",
+      "fixer": "bank",
+      "retry": "likely",
+      "en": {
+        "label": "Approve with ID",
+        "meaning": "The payment could not be authorized without identification; for online payments this is effectively a transient decline.",
+        "action": "Retry. If it persists, the customer should contact their bank."
+      },
+      "fr": {
+        "label": "Identification demandée",
+        "meaning": "La banque demande une vérification d'identité pour autoriser le paiement. Pour un paiement en ligne, ce code est traité ici comme un refus potentiellement temporaire.",
+        "action": "Réessayez. Si le refus persiste, invitez le client à contacter sa banque."
+      }
+    },
+    {
+      "code": "call_issuer",
+      "category": "soft",
+      "fixer": "customer",
+      "retry": "maybe",
+      "en": {
+        "label": "Call issuer",
+        "meaning": "The bank wants to speak to the cardholder before approving, often a fraud check on their side.",
+        "action": "Ask the customer to call their bank, then retry or use another card."
+      },
+      "fr": {
+        "label": "Contacter la banque",
+        "meaning": "La banque souhaite échanger avec le titulaire avant d'autoriser le paiement, notamment pour effectuer une vérification de sécurité.",
+        "action": "Demandez au client de contacter sa banque. Réessayez une fois la situation clarifiée ou proposez une autre carte."
+      }
+    },
+    {
+      "code": "no_action_taken",
+      "category": "soft",
+      "fixer": "bank",
+      "retry": "maybe",
+      "en": {
+        "label": "No action taken",
+        "meaning": "The issuer declined without processing the request.",
+        "action": "Retry once; otherwise the customer should contact their bank."
+      },
+      "fr": {
+        "label": "Demande non traitée",
+        "meaning": "La banque émettrice a refusé le paiement sans traiter la demande.",
+        "action": "Réessayez une fois. Si le refus persiste, invitez le client à contacter sa banque."
+      }
+    },
+    {
+      "code": "restricted_card",
+      "category": "restricted",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Restricted card",
+        "meaning": "The card cannot be used for this kind of purchase (e.g. online, recurring or international), or is temporarily restricted by the bank.",
+        "action": "Do not retry as is. Ask the customer to have the restriction lifted by their bank, or to use another card."
+      },
+      "fr": {
+        "label": "Carte soumise à une restriction",
+        "meaning": "La carte ne permet pas ce type d'achat (en ligne, récurrent ou international), ou la banque lui a appliqué une restriction temporaire.",
+        "action": "Ne réessayez pas en l'état. Invitez le client à demander à sa banque de lever la restriction, ou à utiliser une autre carte."
+      }
+    },
+    {
+      "code": "transaction_not_allowed",
+      "category": "restricted",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Transaction not allowed",
+        "meaning": "Stripe gives no specific reason; the response usually means the card is not allowed to make this kind of transaction (online, recurring or international).",
+        "action": "Do not retry as is. Ask the customer to enable it with their bank or to use another card."
+      },
+      "fr": {
+        "label": "Transaction non autorisée",
+        "meaning": "Stripe ne donne pas de motif précis ; cette réponse signifie en général que la carte n'est pas autorisée pour ce type de transaction (en ligne, récurrente ou internationale).",
+        "action": "Ne réessayez pas en l'état. Demandez au client de faire autoriser ce type de transaction par sa banque, ou d'utiliser une autre carte."
+      }
+    },
+    {
+      "code": "not_permitted",
+      "category": "restricted",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Not permitted",
+        "meaning": "The payment is not permitted on this card or account.",
+        "action": "Do not retry as is. The customer should contact their bank or use another card."
+      },
+      "fr": {
+        "label": "Paiement non autorisé",
+        "meaning": "Ce paiement n'est pas autorisé avec cette carte ou ce compte.",
+        "action": "Ne réessayez pas en l'état. Invitez le client à contacter sa banque ou à utiliser une autre carte."
+      }
+    },
+    {
+      "code": "service_not_allowed",
+      "category": "restricted",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Service not allowed",
+        "meaning": "The issuer does not allow this service for the card.",
+        "action": "Do not retry as is. The customer should contact their bank or use another card."
+      },
+      "fr": {
+        "label": "Service non autorisé",
+        "meaning": "La banque émettrice n'autorise pas ce service avec cette carte.",
+        "action": "Ne réessayez pas en l'état. Invitez le client à contacter sa banque ou à utiliser une autre carte."
+      }
+    },
+    {
+      "code": "expired_card",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Expired card",
+        "meaning": "The card has passed its expiry date. Card networks refresh many cards automatically, but this one was not.",
+        "action": "Email the card-update link. Retrying will fail until the card is replaced."
+      },
+      "fr": {
+        "label": "Carte expirée",
+        "meaning": "La date d'expiration de la carte est dépassée. Les services de mise à jour automatique peuvent actualiser certaines cartes, mais les informations utilisées pour ce paiement restent expirées.",
+        "action": "Envoyez au client le lien de mise à jour de la carte. Ne réessayez pas avec les mêmes informations expirées."
+      }
+    },
+    {
+      "code": "incorrect_number",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Incorrect number",
+        "meaning": "The card number is wrong.",
+        "action": "Ask the customer to re-enter the card."
+      },
+      "fr": {
+        "label": "Numéro de carte incorrect",
+        "meaning": "Le numéro de carte saisi est incorrect.",
+        "action": "Demandez au client de vérifier et de ressaisir les informations de sa carte."
+      }
+    },
+    {
+      "code": "invalid_number",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Invalid number",
+        "meaning": "The card number is not a valid card number.",
+        "action": "Ask the customer to re-enter the card."
+      },
+      "fr": {
+        "label": "Numéro de carte invalide",
+        "meaning": "Le numéro saisi n'est pas un numéro de carte valide.",
+        "action": "Demandez au client de vérifier et de ressaisir les informations de sa carte."
+      }
+    },
+    {
+      "code": "invalid_account",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Invalid account",
+        "meaning": "The card or the account behind it is invalid or closed.",
+        "action": "Ask for another card."
+      },
+      "fr": {
+        "label": "Compte invalide",
+        "meaning": "La carte ou le compte bancaire associé est invalide ou clôturé.",
+        "action": "Demandez au client d'utiliser une autre carte."
+      }
+    },
+    {
+      "code": "new_account_information_available",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "New account information available",
+        "meaning": "The card was replaced; the issuer has new details (number or expiry).",
+        "action": "Ask the customer to update the card. Stripe's card updater may fetch the new one if enabled."
+      },
+      "fr": {
+        "label": "Informations de carte actualisées disponibles",
+        "meaning": "La carte a été remplacée ; la banque émettrice dispose de nouvelles informations, comme le numéro ou la date d'expiration.",
+        "action": "Demandez au client de mettre à jour les informations de sa carte. Le service de mise à jour automatique de Stripe peut également les récupérer s'il est disponible et activé."
+      }
+    },
+    {
+      "code": "incorrect_cvc",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Incorrect CVC",
+        "meaning": "The security code did not match.",
+        "action": "Ask the customer to re-enter the card. Stored subscriptions rarely hit this; check your checkout."
+      },
+      "fr": {
+        "label": "CVC incorrect",
+        "meaning": "Le code de sécurité saisi ne correspond pas à celui de la carte.",
+        "action": "Demandez au client de vérifier et de ressaisir les informations de sa carte. Si ce code apparaît sur un paiement d'abonnement utilisant une carte enregistrée, vérifiez aussi votre parcours de paiement."
+      }
+    },
+    {
+      "code": "invalid_cvc",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Invalid CVC",
+        "meaning": "The security code is not valid.",
+        "action": "Ask the customer to re-enter the card."
+      },
+      "fr": {
+        "label": "CVC invalide",
+        "meaning": "Le code de sécurité saisi n'est pas valide.",
+        "action": "Demandez au client de vérifier et de ressaisir le code de sécurité de sa carte."
+      }
+    },
+    {
+      "code": "invalid_expiry_month",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Invalid expiry month",
+        "meaning": "The expiry month is wrong.",
+        "action": "Ask the customer to re-enter the card."
+      },
+      "fr": {
+        "label": "Mois d'expiration invalide",
+        "meaning": "Le mois d'expiration saisi n'est pas valide.",
+        "action": "Demandez au client de vérifier et de ressaisir la date d'expiration de sa carte."
+      }
+    },
+    {
+      "code": "invalid_expiry_year",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Invalid expiry year",
+        "meaning": "The expiry year is wrong.",
+        "action": "Ask the customer to re-enter the card."
+      },
+      "fr": {
+        "label": "Année d'expiration invalide",
+        "meaning": "L'année d'expiration saisie n'est pas valide.",
+        "action": "Demandez au client de vérifier et de ressaisir la date d'expiration de sa carte."
+      }
+    },
+    {
+      "code": "incorrect_zip",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Incorrect ZIP",
+        "meaning": "The postal code did not match the one on file at the bank.",
+        "action": "Ask the customer to check the billing address."
+      },
+      "fr": {
+        "label": "Code postal incorrect",
+        "meaning": "Le code postal saisi ne correspond pas à celui enregistré auprès de la banque.",
+        "action": "Demandez au client de vérifier son adresse de facturation."
+      }
+    },
+    {
+      "code": "incorrect_address",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Incorrect address",
+        "meaning": "The billing address entered does not match the one the bank has on file.",
+        "action": "Ask the customer to check their billing address and pay again."
+      },
+      "fr": {
+        "label": "Adresse incorrecte",
+        "meaning": "L'adresse de facturation saisie ne correspond pas à celle enregistrée par la banque.",
+        "action": "Demandez au client de vérifier son adresse de facturation et de payer à nouveau."
+      },
+      "template": {
+        "en": "Hi {name},\n\nThe payment for {product} didn't go through because the billing address didn't match the one your bank has on file. Please check it and pay here: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nLe paiement de {product} n'a pas abouti car l'adresse de facturation ne correspond pas à celle enregistrée par votre banque. Merci de la vérifier et de régler ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "incorrect_pin",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Incorrect PIN",
+        "meaning": "Wrong PIN (card-present payments only).",
+        "action": "Not applicable to online subscriptions. In person, the customer pays again with the correct PIN."
+      },
+      "fr": {
+        "label": "Code PIN incorrect",
+        "meaning": "Le code PIN saisi est incorrect. Ce cas concerne les paiements effectués avec la carte sur un terminal.",
+        "action": "Ce code ne concerne pas les abonnements en ligne. Pour un paiement sur terminal, le client paie à nouveau avec le bon code PIN."
+      },
+      "template": {
+        "en": "Hi {name},\n\nThe payment for {product} needs the card to be used in person (PIN or phone confirmation), which isn't possible for this payment. Please pay with another card here: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nLe paiement de {product} nécessite d'utiliser la carte en personne (code PIN ou confirmation sur téléphone), ce qui n'est pas possible pour ce paiement. Merci de payer avec une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "invalid_pin",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Invalid PIN",
+        "meaning": "Invalid PIN (card-present payments only).",
+        "action": "Not applicable to online subscriptions."
+      },
+      "fr": {
+        "label": "Code PIN invalide",
+        "meaning": "Le code PIN saisi n'est pas valide. Ce cas concerne les paiements effectués avec la carte sur un terminal.",
+        "action": "Ce code ne concerne pas les abonnements en ligne."
+      },
+      "template": {
+        "en": "Hi {name},\n\nThe payment for {product} needs the card to be used in person (PIN or phone confirmation), which isn't possible for this payment. Please pay with another card here: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nLe paiement de {product} nécessite d'utiliser la carte en personne (code PIN ou confirmation sur téléphone), ce qui n'est pas possible pour ce paiement. Merci de payer avec une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "pin_try_exceeded",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "PIN tries exceeded",
+        "meaning": "Too many wrong PIN attempts; the card is locked.",
+        "action": "The customer must contact their bank."
+      },
+      "fr": {
+        "label": "Nombre de tentatives de code PIN dépassé",
+        "meaning": "La carte est bloquée après un trop grand nombre de saisies incorrectes du code PIN.",
+        "action": "Invitez le client à contacter sa banque pour connaître les démarches de déblocage."
+      },
+      "template": {
+        "en": "Hi {name},\n\nThe payment for {product} needs the card to be used in person (PIN or phone confirmation), which isn't possible for this payment. Please pay with another card here: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nLe paiement de {product} nécessite d'utiliser la carte en personne (code PIN ou confirmation sur téléphone), ce qui n'est pas possible pour ce paiement. Merci de payer avec une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "offline_pin_required",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Offline PIN required",
+        "meaning": "The card requires a PIN entered on a terminal.",
+        "action": "Not applicable online; ask for another card."
+      },
+      "fr": {
+        "label": "Code PIN hors ligne requis",
+        "meaning": "La carte exige un code PIN saisi et vérifié sur un terminal de paiement.",
+        "action": "Cette vérification ne peut pas être effectuée pour un paiement en ligne. Demandez au client d'utiliser une autre carte."
+      },
+      "template": {
+        "en": "Hi {name},\n\nThe payment for {product} needs the card to be used in person (PIN or phone confirmation), which isn't possible for this payment. Please pay with another card here: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nLe paiement de {product} nécessite d'utiliser la carte en personne (code PIN ou confirmation sur téléphone), ce qui n'est pas possible pour ce paiement. Merci de payer avec une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "online_or_offline_pin_required",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "PIN required",
+        "meaning": "The card requires a PIN to be used.",
+        "action": "Not applicable online; ask for another card."
+      },
+      "fr": {
+        "label": "Code PIN requis",
+        "meaning": "La carte exige la saisie d'un code PIN pour autoriser le paiement.",
+        "action": "Cette vérification ne peut pas être effectuée pour un paiement en ligne. Demandez au client d'utiliser une autre carte."
+      },
+      "template": {
+        "en": "Hi {name},\n\nThe payment for {product} needs the card to be used in person (PIN or phone confirmation), which isn't possible for this payment. Please pay with another card here: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nLe paiement de {product} nécessite d'utiliser la carte en personne (code PIN ou confirmation sur téléphone), ce qui n'est pas possible pour ce paiement. Merci de payer avec une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "authentication_required",
+      "category": "auth",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Authentication required",
+        "meaning": "The bank requires 3-D Secure / Strong Customer Authentication for this charge. Common in Europe on the first charge or after a card change.",
+        "action": "Send the hosted invoice link; the customer confirms in their banking app. Stripe cannot retry this on its own."
+      },
+      "fr": {
+        "label": "Authentification requise",
+        "meaning": "La banque exige une authentification forte, par exemple via 3-D Secure, pour autoriser ce paiement. Cela peut se produire lors du premier paiement ou après un changement de carte.",
+        "action": "Envoyez au client le lien vers la page de paiement de sa facture Stripe afin qu'il suive les étapes d'authentification demandées par sa banque. Une relance automatique ne remplace pas cette confirmation."
+      }
+    },
+    {
+      "code": "authentication_not_handled",
+      "category": "auth",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Authentication not completed",
+        "meaning": "Related to authentication_required: the bank asked for authentication (3-D Secure / SCA), the payment went ahead without it, and the bank declined again.",
+        "action": "Send the hosted invoice link so the customer completes the authentication. For renewals charged without the customer present, set up authentication while they are present first."
+      },
+      "fr": {
+        "label": "Authentification non effectuée",
+        "meaning": "Lié à authentication_required : la banque a demandé une authentification (3-D Secure / SCA), le paiement a été poursuivi sans elle et la banque a de nouveau refusé.",
+        "action": "Envoyez le lien vers la page de paiement de la facture pour que le client effectue l'authentification. Pour les renouvellements prélevés en son absence, mettez en place l'authentification lorsqu'il est présent."
+      }
+    },
+    {
+      "code": "mobile_device_authentication_required",
+      "category": "card",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Mobile device authentication required",
+        "meaning": "In-person payments with a phone or watch: the bank wants the customer to authenticate on their device.",
+        "action": "Ask the customer to tap their device again and authenticate. Not applicable to online subscriptions."
+      },
+      "fr": {
+        "label": "Authentification sur l'appareil mobile requise",
+        "meaning": "Paiements en personne avec un téléphone ou une montre : la banque demande au client de s'authentifier sur son appareil.",
+        "action": "Demandez au client d'approcher à nouveau son appareil et de s'authentifier. Ne concerne pas les abonnements en ligne."
+      },
+      "template": {
+        "en": "Hi {name},\n\nThe payment for {product} needs the card to be used in person (PIN or phone confirmation), which isn't possible for this payment. Please pay with another card here: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nLe paiement de {product} nécessite d'utiliser la carte en personne (code PIN ou confirmation sur téléphone), ce qui n'est pas possible pour ce paiement. Merci de payer avec une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "fraudulent",
+      "category": "fraud",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Fraudulent",
+        "meaning": "Stripe flagged the payment as potentially fraudulent. Show the customer a generic decline, not this reason.",
+        "action": "Never retry. Ask for another card with a neutral message; do not say 'fraud'."
+      },
+      "fr": {
+        "label": "Suspicion de fraude",
+        "meaning": "Stripe a jugé ce paiement potentiellement frauduleux. Présentez au client un refus générique, sans ce motif.",
+        "action": "Ne réessayez pas. Demandez au client d'utiliser une autre carte dans un message neutre, sans mentionner une suspicion de fraude."
+      }
+    },
+    {
+      "code": "lost_card",
+      "category": "fraud",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Lost card",
+        "meaning": "The card was reported lost. The customer usually already has a replacement.",
+        "action": "Ask for the new card. Do not retry."
+      },
+      "fr": {
+        "label": "Carte perdue",
+        "meaning": "La carte a été déclarée perdue auprès de la banque émettrice.",
+        "action": "Ne réessayez pas. Demandez au client d'ajouter une autre carte, sans mentionner le signalement dans votre message."
+      }
+    },
+    {
+      "code": "stolen_card",
+      "category": "fraud",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Stolen card",
+        "meaning": "The card was reported stolen.",
+        "action": "Ask for the new card. Do not retry. Keep the message neutral."
+      },
+      "fr": {
+        "label": "Carte volée",
+        "meaning": "La carte a été déclarée volée auprès de la banque émettrice.",
+        "action": "Ne réessayez pas. Demandez au client d'ajouter une autre carte, en gardant un message neutre."
+      }
+    },
+    {
+      "code": "pickup_card",
+      "category": "fraud",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Pickup card",
+        "meaning": "The issuer wants the physical card withdrawn (lost, stolen or closed).",
+        "action": "Ask for another card. Do not retry."
+      },
+      "fr": {
+        "label": "Carte à retenir",
+        "meaning": "La banque émettrice demande que la carte physique soit retenue, par exemple parce qu'elle a été déclarée perdue ou volée, ou que le compte est clôturé.",
+        "action": "Ne réessayez pas. Demandez au client d'utiliser une autre carte, en gardant un message neutre."
+      }
+    },
+    {
+      "code": "stop_payment_order",
+      "category": "fraud",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Stop payment order",
+        "meaning": "Stripe gives no specific reason; on card networks this response usually means the cardholder asked their bank to stop payments to you.",
+        "action": "Do not retry. Reach out to understand the cancellation; check for a dispute."
+      },
+      "fr": {
+        "label": "Opposition au paiement",
+        "meaning": "Stripe ne donne pas de motif précis ; sur les réseaux de cartes, cette réponse signifie en général que le titulaire a demandé à sa banque de bloquer les paiements à votre entreprise.",
+        "action": "Ne réessayez pas. Contactez le client pour comprendre sa demande et vérifiez si le paiement fait l'objet d'une contestation."
+      },
+      "template": {
+        "en": "Hi {name},\n\nYour bank told us that payments to us for {product} were stopped from your side. If you meant to cancel, there is nothing more to do and we will close the subscription. If not, you can pay here and keep your access: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nVotre banque nous indique que les paiements pour {product} ont été bloqués à votre demande. Si vous souhaitiez résilier, vous n'avez rien d'autre à faire et nous clôturerons l'abonnement. Sinon, vous pouvez régler ici et conserver votre accès : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "revocation_of_authorization",
+      "category": "fraud",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Revocation of authorization",
+        "meaning": "The customer revoked the authorization for this recurring payment with their bank.",
+        "action": "Do not retry. Treat as a cancellation request and reach out."
+      },
+      "fr": {
+        "label": "Autorisation de paiement révoquée",
+        "meaning": "Le client a retiré auprès de sa banque l'autorisation de ce paiement récurrent.",
+        "action": "Ne réessayez pas. Contactez le client pour clarifier sa demande et vérifier s'il souhaite résilier son abonnement."
+      },
+      "template": {
+        "en": "Hi {name},\n\nYour bank told us that payments to us for {product} were stopped from your side. If you meant to cancel, there is nothing more to do and we will close the subscription. If not, you can pay here and keep your access: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nVotre banque nous indique que les paiements pour {product} ont été bloqués à votre demande. Si vous souhaitiez résilier, vous n'avez rien d'autre à faire et nous clôturerons l'abonnement. Sinon, vous pouvez régler ici et conserver votre accès : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "revocation_of_all_authorizations",
+      "category": "fraud",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Revocation of all authorizations",
+        "meaning": "The customer revoked all recurring authorizations on this card.",
+        "action": "Do not retry. Reach out; the customer has likely moved on."
+      },
+      "fr": {
+        "label": "Toutes les autorisations de paiement révoquées",
+        "meaning": "Le client a retiré toutes les autorisations de paiement récurrent associées à cette carte.",
+        "action": "Ne réessayez pas. Contactez le client pour clarifier ses intentions concernant l'abonnement."
+      },
+      "template": {
+        "en": "Hi {name},\n\nYour bank told us that payments to us for {product} were stopped from your side. If you meant to cancel, there is nothing more to do and we will close the subscription. If not, you can pay here and keep your access: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nVotre banque nous indique que les paiements pour {product} ont été bloqués à votre demande. Si vous souhaitiez résilier, vous n'avez rien d'autre à faire et nous clôturerons l'abonnement. Sinon, vous pouvez régler ici et conserver votre accès : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "security_violation",
+      "category": "fraud",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Security violation",
+        "meaning": "The issuer blocked the card for a security reason.",
+        "action": "Do not retry. Ask for another card."
+      },
+      "fr": {
+        "label": "Blocage de sécurité",
+        "meaning": "La banque émettrice a bloqué la carte pour une raison de sécurité.",
+        "action": "Ne réessayez pas. Demandez au client d'utiliser une autre carte."
+      }
+    },
+    {
+      "code": "merchant_blacklist",
+      "category": "merchant",
+      "fixer": "you",
+      "retry": "no",
+      "en": {
+        "label": "Merchant blacklist",
+        "meaning": "The payment matched a block rule in your Stripe Radar settings (blocked card, email or IP).",
+        "action": "Review your Radar block lists before charging again. Nothing the customer can do; if you contact them, present it as a generic decline."
+      },
+      "fr": {
+        "label": "Blocage par une liste Radar",
+        "meaning": "Le paiement correspond à une règle de blocage dans vos paramètres Stripe Radar, par exemple sur la carte, l'adresse e-mail ou l'adresse IP.",
+        "action": "Vérifiez vos listes de blocage Radar avant de facturer à nouveau. Le client ne peut pas modifier vos règles Radar ; si vous le contactez, présentez-le comme un refus générique."
+      }
+    },
+    {
+      "code": "do_not_try_again",
+      "category": "restricted",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Do not try again",
+        "meaning": "The issuer refuses and asks that you do not retry, without giving a reason. Stripe lists this code as deprecated, so you mostly see it on older payments.",
+        "action": "Do not retry. Ask for another card."
+      },
+      "fr": {
+        "label": "Ne pas réessayer",
+        "meaning": "La banque émettrice refuse le paiement et demande de ne pas renouveler la tentative, sans en préciser la raison. Stripe indique que ce code est obsolète : il apparaît surtout sur des paiements anciens.",
+        "action": "Ne réessayez pas. Demandez au client d'utiliser une autre carte."
+      }
+    },
+    {
+      "code": "card_not_supported",
+      "category": "merchant",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Card not supported",
+        "meaning": "The card does not support this kind of purchase (e.g. a prepaid or debit card that cannot be used for recurring online payments).",
+        "action": "Ask for a different card, or check which card types you accept."
+      },
+      "fr": {
+        "label": "Carte non prise en charge",
+        "meaning": "La carte ne permet pas ce type d'achat. Certaines cartes prépayées ou de débit, par exemple, ne peuvent pas être utilisées pour des paiements récurrents en ligne.",
+        "action": "Vérifiez les types de cartes que vous acceptez ou demandez au client d'utiliser une autre carte."
+      },
+      "template": {
+        "en": "Hi {name},\n\nThe card on file can't be used for the payment for {product}: your bank reported that it does not support this payment. You can check with your bank, or pay with another card here: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nLa carte enregistrée ne peut pas être utilisée pour le paiement de {product} : votre banque indique qu'elle ne prend pas en charge ce paiement. Vous pouvez vérifier auprès de votre banque, ou payer avec une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "currency_not_supported",
+      "category": "merchant",
+      "fixer": "customer",
+      "retry": "no",
+      "en": {
+        "label": "Currency not supported",
+        "meaning": "The card cannot be charged in this currency.",
+        "action": "Bill in a supported currency or ask for another card."
+      },
+      "fr": {
+        "label": "Devise non prise en charge",
+        "meaning": "La carte ne permet pas d'effectuer un paiement dans cette devise.",
+        "action": "Proposez un paiement dans une devise prise en charge ou demandez au client d'utiliser une autre carte."
+      },
+      "template": {
+        "en": "Hi {name},\n\nThe card on file can't be used for the payment for {product}: your bank reported that it does not support this payment. You can check with your bank, or pay with another card here: {link}\n\nThanks,\n{company}",
+        "fr": "Bonjour {name},\n\nLa carte enregistrée ne peut pas être utilisée pour le paiement de {product} : votre banque indique qu'elle ne prend pas en charge ce paiement. Vous pouvez vérifier auprès de votre banque, ou payer avec une autre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    {
+      "code": "invalid_amount",
+      "category": "merchant",
+      "fixer": "you",
+      "retry": "no",
+      "en": {
+        "label": "Invalid amount",
+        "meaning": "The amount is invalid or above what the card allows.",
+        "action": "Fix the amount (minimums, maximums, decimals) and charge again; resubmitting the same amount will fail."
+      },
+      "fr": {
+        "label": "Montant invalide",
+        "meaning": "Le montant du paiement n'est pas valide ou dépasse une limite autorisée pour la carte.",
+        "action": "Corrigez le montant (minimums, maximums, décimales) puis facturez à nouveau ; soumettre le même montant échouera."
+      }
+    },
+    {
+      "code": "duplicate_transaction",
+      "category": "merchant",
+      "fixer": "you",
+      "retry": "no",
+      "en": {
+        "label": "Duplicate transaction",
+        "meaning": "An identical charge was submitted very recently.",
+        "action": "Do not charge again until you have checked the first attempt: it may have succeeded."
+      },
+      "fr": {
+        "label": "Transaction en double",
+        "meaning": "Une demande de paiement identique a été soumise très récemment.",
+        "action": "Ne facturez pas à nouveau avant d'avoir vérifié la première tentative : elle a peut-être abouti."
+      }
+    },
+    {
+      "code": "testmode_decline",
+      "category": "merchant",
+      "fixer": "you",
+      "retry": "no",
+      "en": {
+        "label": "Test mode decline",
+        "meaning": "A Stripe test card was used in live mode (or a decline test card in test mode).",
+        "action": "Use a real card in live mode."
+      },
+      "fr": {
+        "label": "Refus lié à une carte de test",
+        "meaning": "Une carte de test Stripe a été utilisée en mode production, ou une carte simulant un refus a été utilisée en mode test.",
+        "action": "En production, utilisez une carte réelle. En mode test, choisissez une carte correspondant au scénario que vous souhaitez vérifier."
+      }
+    }
+  ],
+  "notes": [
+    {
+      "term": "highest_risk_level",
+      "categories": [
+        "fraud",
+        "merchant"
+      ],
+      "en": "highest_risk_level is not a decline code: it is Stripe Radar's risk rating, and it means Radar blocked the payment itself before the bank decided. Treat it like a blocked card (do not retry, ask for another card) unless you believe it is a false positive, in which case check your Radar rules.",
+      "fr": "highest_risk_level n'est pas un code de refus : c'est l'évaluation du risque de Stripe Radar, qui indique que Radar a lui-même bloqué le paiement avant la décision de la banque. Traitez-le comme une carte bloquée (ne réessayez pas, demandez une autre carte), sauf si vous pensez qu'il s'agit d'un faux positif : vérifiez alors vos règles Radar."
+    },
+    {
+      "term": "elevated_risk_level",
+      "categories": [
+        "merchant",
+        "fraud"
+      ],
+      "en": "elevated_risk_level is not a decline code: it is Stripe Radar's risk rating. Radar does not block these payments by default, so a failed payment with this rating was most likely stopped by one of your own Radar rules. Check your block and review rules before retrying or asking the customer for another card.",
+      "fr": "elevated_risk_level n'est pas un code de refus : c'est l'évaluation du risque de Stripe Radar. Radar ne bloque pas ces paiements par défaut ; un paiement en échec avec cette évaluation a donc très probablement été arrêté par l'une de vos propres règles Radar. Vérifiez vos règles de blocage et de revue avant de réessayer ou de demander une autre carte au client."
+    },
+    {
+      "term": "rule",
+      "field": "reason",
+      "categories": [
+        "merchant",
+        "fraud"
+      ],
+      "en": "This payment was blocked by Stripe Radar (outcome.type \"blocked\"), not declined by the bank. With outcome.reason \"rule\" it was one of your own Radar rules. Check which rule matched before charging again or asking the customer for another card.",
+      "fr": "Ce paiement a été bloqué par Stripe Radar (outcome.type « blocked »), et non refusé par la banque. Avec outcome.reason « rule », c'est l'une de vos propres règles Radar. Vérifiez quelle règle s'est appliquée avant de facturer à nouveau ou de demander une autre carte au client."
+    }
+  ]
+}
