@@ -22,11 +22,27 @@ import { data, guides } from "./data.generated.js";
 export type DeclineCategory = "soft" | "funds" | "card" | "limit" | "restricted" | "auth" | "fraud" | "merchant";
 /** Who can make the next attempt succeed. */
 export type Fixer = "bank" | "customer" | "you";
-/** Whether retrying the same card can succeed. */
+/**
+ * Whether retrying the same card, as is, can succeed. `no` covers two cases: the
+ * bank will refuse the same card until the customer changes something (card data,
+ * limit, restriction, authentication), or Stripe or the network asked not to retry
+ * (blocked or withdrawn cards, your own side to fix). Stripe does not publish a
+ * hard/soft list of codes; what it gives per attempt is `advice_code`, which
+ * `explain` honours over this table when it is in the input.
+ */
 export type Retry = "likely" | "maybe" | "no";
+/** Stripe's per-attempt `advice_code` (on the error and on `charge.outcome`). */
+export type Advice = "do_not_try_again" | "try_again_later" | "confirm_card_data";
 export type Locale = "en" | "fr";
 
-export type DeclineText = { label: string; meaning: string; action: string };
+/**
+ * `label`, `meaning` and `action` are written for you; `customer` is written for
+ * the customer: one or two sentences to show at checkout, on a billing page or in
+ * a support reply, with no placeholders. It never promises a retry, never says
+ * "nothing to do" when the card has to change, and never tells a customer their
+ * card was reported lost, stolen or fraudulent.
+ */
+export type DeclineText = { label: string; meaning: string; action: string; customer: string };
 
 export type DeclineCode = {
   code: string;
@@ -68,6 +84,13 @@ export const guideUrl = (code: string, locale: Locale = "en"): string | undefine
 
 /** The customer email for a code: its own when the category's does not fit, else the category's. */
 export const templateFor = (d: DeclineCode, locale: Locale = "en"): string => d.template?.[locale] ?? CATEGORIES[d.category][locale].template;
+
+/**
+ * The short customer-facing message for a code, to show at checkout, on a billing
+ * page or in a support reply; `undefined` when the code is unknown. Accepts the
+ * same spellings as `lookup`.
+ */
+export const customerMessage = (code: string, locale: Locale = "en"): string | undefined => lookup(code)?.[locale].customer;
 
 /** `do not honor`, `Do-Not-Honor` and `do_not_honor` name the same code. */
 const normalise = (value: string) => value.trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -162,6 +185,18 @@ function findCodeIn(input: string): DeclineCode | null {
   return byMessage ? DECLINE_BY_CODE.get(byMessage[1]) ?? null : null;
 }
 
+const ADVICE: Record<Advice, Retry> = { do_not_try_again: "no", try_again_later: "likely", confirm_card_data: "no" };
+
+/**
+ * Stripe's `advice_code` in a pasted error, Charge or webhook payload, when it holds
+ * one of the three documented values; `null` otherwise. It is Stripe's own verdict
+ * for that attempt, so it is worth more than the per-code table.
+ */
+export function findAdvice(input: string): Advice | null {
+  const value = fieldValue(input.trim().toLowerCase(), "advice_code");
+  return value && value in ADVICE ? (value as Advice) : null;
+}
+
 /** Codes whose identifier or label (English or French, accents ignored) contains the input. */
 export function suggest(input: string, limit = 6): DeclineCode[] {
   const raw = fold(input);
@@ -194,9 +229,15 @@ export type Explanation = {
   categorySummary: string;
   fixer: Fixer;
   retry: Retry;
+  /** Where `retry` comes from: Stripe's `advice_code` in the input when there is one, else the code's table entry. */
+  retrySource: "advice_code" | "code";
+  /** Stripe's `advice_code` when the input carried one. */
+  advice?: Advice;
   label: string;
   meaning: string;
   action: string;
+  /** Short message for the customer (checkout, billing page, support reply), no placeholders. */
+  customer: string;
   /** Customer email with `{name}`, `{product}`, `{link}` and `{company}` placeholders. */
   email: string;
   /** Long-form guide on flow-mrr.com, when there is one. */
@@ -206,21 +247,26 @@ export type Explanation = {
 /**
  * One call for the common case: a code, a label, a message or a pasted payload
  * in, a flat explanation out (`null` when nothing in the text is a decline).
+ * When the payload carries Stripe's `advice_code`, `retry` follows it.
  */
 export function explain(input: string, locale: Locale = "en"): Explanation | null {
   const d = findCode(input);
   if (!d) return null;
   const cat = CATEGORIES[d.category][locale];
+  const advice = findAdvice(input) ?? undefined;
   return {
     code: d.code,
     category: d.category,
     categoryLabel: cat.label,
     categorySummary: cat.summary,
     fixer: d.fixer,
-    retry: d.retry,
+    retry: advice ? ADVICE[advice] : d.retry,
+    retrySource: advice ? "advice_code" : "code",
+    ...(advice ? { advice } : {}),
     label: d[locale].label,
     meaning: d[locale].meaning,
     action: d[locale].action,
+    customer: d[locale].customer,
     email: templateFor(d, locale),
     guide: guideUrl(d.code, locale),
   };

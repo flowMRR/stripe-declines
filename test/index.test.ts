@@ -7,7 +7,9 @@ import {
   DECLINE_NOTES,
   GUIDE_SLUGS,
   REVIEWED,
+  customerMessage,
   explain,
+  findAdvice,
   findCode,
   findNote,
   guideUrl,
@@ -25,7 +27,7 @@ test("codes.json holds only known categories, fixers and retry values", () => {
     assert.ok(categories.includes(d.category), d.code);
     assert.ok(["bank", "customer", "you"].includes(d.fixer), d.code);
     assert.ok(["likely", "maybe", "no"].includes(d.retry), d.code);
-    for (const l of ["en", "fr"] as const) for (const k of ["label", "meaning", "action"] as const) assert.ok(d[l][k]?.trim(), `${d.code} ${l}.${k}`);
+    for (const l of ["en", "fr"] as const) for (const k of ["label", "meaning", "action", "customer"] as const) assert.ok(d[l][k]?.trim(), `${d.code} ${l}.${k}`);
   }
   for (const cat of categories) assert.ok(DECLINE_CODES.some((d) => d.category === cat), `empty category ${cat}`);
   for (const n of DECLINE_NOTES) for (const cat of n.categories) assert.ok(categories.includes(cat), n.term);
@@ -57,6 +59,7 @@ test("explain returns the flat shape, in both languages", () => {
   assert.equal(en.category, "funds");
   assert.equal(en.categoryLabel, CATEGORIES.funds.en.label);
   assert.equal(en.email, templateFor(DECLINE_BY_CODE.get("insufficient_funds")!, "en"));
+  assert.equal(en.customer, customerMessage("insufficient_funds"));
   assert.equal(en.guide, "https://flow-mrr.com/en/tools/card-decline/insufficient-funds");
   const fr = explain("Votre carte a des fonds insuffisants.", "fr");
   assert.ok(fr);
@@ -64,6 +67,76 @@ test("explain returns the flat shape, in both languages", () => {
   assert.equal(fr.label, DECLINE_BY_CODE.get("insufficient_funds")!.fr.label);
   assert.equal(fr.guide, "https://flow-mrr.com/fr/tools/card-decline/insufficient-funds");
   assert.equal(explain("hello world"), null);
+});
+
+test("Stripe's advice_code, when pasted, decides the retry verdict", () => {
+  assert.equal(findAdvice('{"decline_code":"do_not_honor","advice_code":"try_again_later"}'), "try_again_later");
+  assert.equal(findAdvice("decline_code: insufficient_funds"), null);
+  assert.equal(findAdvice('{"advice_code":"something_new"}'), null);
+  const table = explain("do_not_honor")!;
+  assert.equal(table.retrySource, "code");
+  assert.equal(table.advice, undefined);
+  const stop = explain('{"code":"card_declined","decline_code":"do_not_honor","advice_code":"do_not_try_again"}')!;
+  assert.equal(stop.code, "do_not_honor");
+  assert.equal(stop.retry, "no");
+  assert.equal(stop.retrySource, "advice_code");
+  assert.equal(stop.advice, "do_not_try_again");
+  const fix = explain('{"outcome":{"reason":"expired_card","advice_code":"confirm_card_data","type":"issuer_declined"}}')!;
+  assert.equal(fix.code, "expired_card");
+  assert.equal(fix.retry, "no");
+  assert.equal(fix.advice, "confirm_card_data");
+  // A Charge Adaptive Acceptance blocked: not a decline, explained by a note.
+  const blocked = '{"failure_code":"card_declined","outcome":{"reason":"low_probability_of_authorization","advice_code":"do_not_try_again","type":"blocked"}}';
+  assert.equal(findCode(blocked), null);
+  assert.equal(findNote(blocked)?.term, "low_probability_of_authorization");
+});
+
+test("codes Stripe documents as 'unknown reason' are not explained as certainties", () => {
+  // Stripe's reference gives no reason for these; the meaning must say so before any network reading.
+  for (const code of ["do_not_honor", "stop_payment_order", "revocation_of_authorization", "revocation_of_all_authorizations", "security_violation", "call_issuer", "do_not_try_again"]) {
+    const d = DECLINE_BY_CODE.get(code)!;
+    assert.match(d.en.meaning, /unknown reason|gives no reason|says only/, code);
+    assert.match(d.fr.meaning, /raison inconnue|ne donne pas de raison|indique seulement/, code);
+  }
+  // And the customer is never told what we do not know (that they stopped the payments).
+  for (const code of ["stop_payment_order", "revocation_of_authorization", "revocation_of_all_authorizations"]) {
+    const d = DECLINE_BY_CODE.get(code)!;
+    assert.doesNotMatch(d.en.customer, /your request|you withdrew|you asked/i, code);
+    assert.doesNotMatch(d.fr.customer, /votre demande|vous avez/i, code);
+    assert.doesNotMatch(templateFor(d, "en"), /from your side|at your request/i, code);
+  }
+  // Stripe: present these like a generic decline. Same wording as the fraud-lane cards, nothing more.
+  for (const code of ["fraudulent", "lost_card", "stolen_card", "pickup_card", "merchant_blacklist"]) {
+    const d = DECLINE_BY_CODE.get(code)!;
+    for (const l of ["en", "fr"] as const) assert.match(d[l].customer, /^(Your card was declined|This payment was declined|Votre carte a été refusée|Ce paiement a été refusé)\./, `${code} ${l}`);
+  }
+  assert.match(DECLINE_BY_CODE.get("card_declined")!.en.meaning, /^Not a decline code/);
+  assert.match(DECLINE_BY_CODE.get("generic_decline")!.en.meaning, /Radar/);
+  assert.equal(DECLINE_BY_CODE.get("mobile_device_authentication_required")!.category, "auth");
+});
+
+test("the customer message of every code is short, self-contained and consistent with its verdict", () => {
+  assert.equal(customerMessage("Expired card"), DECLINE_BY_CODE.get("expired_card")!.en.customer);
+  assert.equal(customerMessage("expired_card", "fr"), DECLINE_BY_CODE.get("expired_card")!.fr.customer);
+  assert.equal(customerMessage("nope"), undefined);
+  for (const d of DECLINE_CODES) {
+    for (const l of ["en", "fr"] as const) {
+      const text = d[l].customer;
+      const where = `${d.code} ${l}`;
+      assert.ok(text.length <= 220, `${where}: ${text.length} chars`);
+      assert.doesNotMatch(text, /\{[a-z]+\}/, `${where}: placeholder`);
+      assert.doesNotMatch(text, /stripe|radar|decline_code|smart retries/i, `${where}: names our side`);
+      // A customer is never told that the card was reported, flagged or fraudulent.
+      assert.doesNotMatch(text, /lost|stolen|fraud|flagged|perdu|vol[ée]e?\b|fraud|signal[ée]e/i, `${where}: fraud wording`);
+      // Nor promised a retry on our side, or told to retry a card that cannot work.
+      assert.doesNotMatch(text, /we will try again|we'll try again|nous réessaierons|nous allons réessayer/i, `${where}: promises a retry`);
+      if (d.retry === "no") assert.doesNotMatch(text, /try again later|try again in|réessayez plus tard|réessayez dans/i, `${where}: retry no`);
+      if (d.fixer === "customer") {
+        assert.doesNotMatch(text, /nothing (to do|to change|is needed)|rien à (faire|modifier)|aucune action/i, `${where}: customer must act`);
+        assert.match(text, /card|carte|bank|banque|verification|vérification|device|appareil|cvc|expiry|expiration|address|adresse/i, `${where}: says what to do`);
+      }
+    }
+  }
 });
 
 test("the classification follows FlowMRR's recovery rules", () => {

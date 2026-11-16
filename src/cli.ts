@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * stripe-declines <code | label | message | pasted payload> [--lang fr] [--json] [--email]
+ * stripe-declines <code | label | message | pasted payload> [--lang fr] [--json] [--customer] [--email]
  *
  *   npx stripe-declines do_not_honor
  *   npx stripe-declines "Your card has insufficient funds." --lang fr
@@ -15,6 +15,7 @@ export function run(argv: string[], stdin = ""): CliResult {
   let locale: Locale = "en";
   let json = false;
   let email = false;
+  let customer = false;
   const words: string[] = [];
   while (args.length) {
     const a = args.shift() as string;
@@ -28,6 +29,7 @@ export function run(argv: string[], stdin = ""): CliResult {
       locale = v;
     } else if (a === "--json") json = true;
     else if (a === "--email") email = true;
+    else if (a === "--customer") customer = true;
     else if (a === "-h" || a === "--help") return { out: HELP, code: 0 };
     else words.push(a);
   }
@@ -43,15 +45,17 @@ export function run(argv: string[], stdin = ""): CliResult {
     return { out: json ? JSON.stringify({ error: "no decline code found", suggestions: near }, null, 2) + "\n" : `No decline code found in the input.\n${hint}`, code: 1 };
   }
   if (json) return { out: JSON.stringify(x, null, 2) + "\n", code: 0 };
+  if (customer && !email) return { out: x.customer + "\n", code: 0 };
   const lines = [
     `${x.code} — ${x.label}`,
-    `${locale === "fr" ? "Catégorie" : "Category"}: ${x.categoryLabel} (${x.category}) · ${locale === "fr" ? "retente" : "retry"}: ${x.retry} · ${locale === "fr" ? "qui corrige" : "who fixes it"}: ${x.fixer}`,
+    `${locale === "fr" ? "Catégorie" : "Category"}: ${x.categoryLabel} (${x.category}) · ${locale === "fr" ? "retente" : "retry"}: ${x.retry}${x.advice ? ` (advice_code ${x.advice})` : ""} · ${locale === "fr" ? "qui corrige" : "who fixes it"}: ${x.fixer}`,
     "",
     x.meaning,
     "",
     x.action,
   ];
-  if (x.guide) lines.push("", `${locale === "fr" ? "Guide" : "Guide"}: ${x.guide}`);
+  if (x.guide) lines.push("", `Guide: ${x.guide}`);
+  if (customer) lines.push("", `${locale === "fr" ? "Pour le client" : "For the customer"}: ${x.customer}`);
   if (email) lines.push("", "---", x.email);
   return { out: lines.join("\n") + "\n", code: 0 };
 }
@@ -64,11 +68,13 @@ who can fix it, what to do, and what to tell the customer.
 Options
   --lang en|fr   language of the explanation (default en)
   --json         machine-readable output
+  --customer     only the short message to show the customer (with --email: both)
   --email        append the customer email template
   -h, --help     this help
 
 The input can also come from stdin. Examples
   stripe-declines do_not_honor
+  stripe-declines insufficient_funds --customer
   stripe-declines "Your card has insufficient funds." --lang fr --email
   stripe-declines '{"code":"card_declined","decline_code":"lost_card"}' --json
 `;

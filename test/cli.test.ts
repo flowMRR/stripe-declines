@@ -9,6 +9,20 @@ test("a code prints its explanation and exits 0", () => {
   assert.match(out, /retry: likely · who fixes it: bank/);
   assert.match(out, /Guide: https:\/\/flow-mrr\.com\/en\/tools\/card-decline\/do-not-honor/);
   assert.doesNotMatch(out, /\{name\}/, "the email is only printed with --email");
+  assert.doesNotMatch(out, /For the customer/, "the customer message is only printed with --customer");
+});
+
+test("--customer prints only the customer message; with --email, both are appended", () => {
+  const only = run(["expired_card", "--customer"]);
+  assert.equal(only.code, 0);
+  assert.equal(only.out, "This card has expired. Please add a new card.\n");
+  const fr = run(["expired_card", "--customer", "--lang", "fr"]);
+  assert.equal(fr.out, "Cette carte a expiré. Ajoutez une nouvelle carte.\n");
+  const both = run(["expired_card", "--customer", "--email"]);
+  assert.match(both.out, /^expired_card — /);
+  assert.match(both.out, /For the customer: This card has expired/);
+  assert.match(both.out, /\{name\}/);
+  assert.equal(JSON.parse(run(["expired_card", "--json"]).out).customer, "This card has expired. Please add a new card.");
 });
 
 test("--lang fr, --email and --json", () => {
@@ -22,6 +36,9 @@ test("--lang fr, --email and --json", () => {
   const parsed = JSON.parse(json.out);
   assert.equal(parsed.code, "lost_card");
   assert.equal(parsed.guide, "https://flow-mrr.com/fr/tools/card-decline/lost-card");
+  assert.equal(parsed.retrySource, "code");
+  const advised = run(['{"decline_code":"do_not_honor","advice_code":"do_not_try_again"}']);
+  assert.match(advised.out, /retry: no \(advice_code do_not_try_again\)/);
 });
 
 test("stdin is used when no input is given on the command line", () => {

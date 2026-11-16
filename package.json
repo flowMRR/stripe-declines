@@ -1,7 +1,7 @@
 {
   "name": "stripe-declines",
-  "version": "0.1.0",
-  "description": "Stripe card decline codes explained for failed-payment recovery: category, who can fix it, whether a retry can succeed, and what to tell the customer. Parses pasted errors, Charge objects and webhook payloads. English and French.",
+  "version": "0.2.0",
+  "description": "Stripe card decline codes explained for failed-payment recovery: category, who can fix it, whether a retry can succeed, a message to show the customer and an email to send them. Parses pasted errors, Charge objects and webhook payloads. English and French.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/cjs/index.js",
