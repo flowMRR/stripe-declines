@@ -1,9 +1,13 @@
 # Changelog
 
+## 0.2.4
+
+- On a blocked or withdrawn card (`fraud` category) only `do_not_try_again` applies now. 0.2.3 let any advice through that did not loosen the verdict, so `confirm_card_data` on a `stolen_card` told the customer to re-enter and retry a card that has to be replaced. `stolen_card` with `try_again_later` or `confirm_card_data` keeps "no", the customer fixer and the code's own generic-decline message and email (`retrySource: "code"`, `advice` still reported).
+- `findAdvice()`, `adviceText()`, `explain()` and `customerMessage()` no longer treat object prototype keys (`constructor`, `__proto__`) as advice codes; `explain()` used to throw on such a payload.
+
 ## 0.2.3
 
-- On a blocked or withdrawn card (`fraud` category: lost, stolen, picked-up or fraudulent card, stop payment, revoked authorisation, security violation) only `do_not_try_again` applies. The `advice_code` can never loosen the verdict, and it can never have the customer retry the same card: `stolen_card` with `try_again_later` or `confirm_card_data` keeps "no", the customer fixer and the code's own generic-decline message and email (`retrySource: "code"`, `advice` still reported), since card networks penalise retries on those codes and the card has to be replaced. The command line says "not applied: blocked card" in that case. A test covers every blocked-card code × every advice.
-- `findAdvice()`, `adviceText()`, `explain()` and `customerMessage()` no longer treat object prototype keys (`constructor`, `__proto__`) as advice codes; `explain()` used to throw on such a payload.
+- On a blocked or withdrawn card (`fraud` category: lost, stolen, picked-up or fraudulent card, stop payment, revoked authorisation, security violation) the `advice_code` can only make the verdict stricter, never looser: `stolen_card` with `try_again_later` keeps "no", the customer fixer and the code's own neutral message and email (`retrySource: "code"`, `advice` still reported), since card networks penalise retries on those codes. The command line says "not applied: blocked card" in that case. A test covers every blocked-card code × every advice.
 - `customerMessage()` respects the `advice_code`: it accepts what `explain()` accepts (a code, a label, Stripe's message, a pasted payload) and, for a bare code, the attempt's advice as a third argument, `customerMessage(error.decline_code ?? error.code, locale, error.advice_code)`. It returns `null` when nothing matches, like `explain()`, where it returned `undefined`. A test checks every code × advice pair never promises a retry under a "no" verdict.
 
 ## 0.2.2
