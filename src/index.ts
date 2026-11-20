@@ -205,16 +205,20 @@ function findCodeIn(input: string): DeclineCode | null {
 }
 
 const ADVICE: Record<Advice, Retry> = { do_not_try_again: "no", try_again_later: "likely", confirm_card_data: "no" };
-const STRICTNESS: Record<Retry, number> = { no: 0, maybe: 1, likely: 2 };
+/** Own keys only: `"constructor" in ADVICE` is true for any object literal. */
+const isAdvice = (value: string): value is Advice => Object.prototype.hasOwnProperty.call(ADVICE, value);
 
 /**
  * Whether Stripe's `advice_code` decides the verdict for this code. It does, except
  * on a blocked or withdrawn card (`fraud` category: lost, stolen, picked up,
- * fraudulent, stop payment, revoked authorisation, security violation), where it
- * can only make the verdict stricter, never looser: card networks penalise retries
- * on those codes, so a `try_again_later` on a `stolen_card` keeps "no".
+ * fraudulent, stop payment, revoked authorisation, security violation), where only
+ * `do_not_try_again` applies. Card networks penalise retries on those codes and the
+ * card has to be replaced, so an advice that would loosen the verdict
+ * (`try_again_later`) or have the customer re-enter and retry the same card
+ * (`confirm_card_data`) is kept out: a `stolen_card` keeps "no" and its own
+ * generic-decline message either way.
  */
-const adviceApplies = (d: DeclineCode, advice: Advice): boolean => d.category !== "fraud" || STRICTNESS[ADVICE[advice]] <= STRICTNESS[d.retry];
+const adviceApplies = (d: DeclineCode, advice: Advice): boolean => d.category !== "fraud" || advice === "do_not_try_again";
 
 /**
  * The short customer-facing message for a decline, to show at checkout, on a billing
@@ -229,7 +233,7 @@ export function customerMessage(input: string | null | undefined, locale: Locale
   const d = findCode(input);
   if (!d) return null;
   const given = normalise(text(advice));
-  const a = findAdvice(input) ?? (given in ADVICE ? (given as Advice) : undefined);
+  const a = findAdvice(input) ?? (isAdvice(given) ? given : undefined);
   const applied = a && adviceApplies(d, a) ? a : undefined;
   const l = loc(locale);
   return applied ? ADVICE_TEXT[applied][l].customer : d[l].customer;
@@ -248,8 +252,8 @@ export function adviceText(advice: Advice, locale?: Locale | string): AdviceExpl
 export function adviceText(advice: string | null | undefined, locale?: Locale | string): AdviceExplanation | undefined;
 export function adviceText(advice: string | null | undefined, locale: Locale | string = "en"): AdviceExplanation | undefined {
   const value = normalise(text(advice));
-  if (!(value in ADVICE_TEXT)) return undefined;
-  const entry = ADVICE_TEXT[value as Advice];
+  if (!isAdvice(value)) return undefined;
+  const entry = ADVICE_TEXT[value];
   const t = entry[loc(locale)];
   return { action: t.action, fixer: entry.fixer, customer: t.customer, email: t.template };
 }
@@ -261,7 +265,7 @@ export function adviceText(advice: string | null | undefined, locale: Locale | s
  */
 export function findAdvice(input: string | null | undefined): Advice | null {
   const value = fieldValue(text(input).trim().toLowerCase(), "advice_code");
-  return value && value in ADVICE ? (value as Advice) : null;
+  return value && isAdvice(value) ? value : null;
 }
 
 /** Codes whose identifier or label (English or French, accents ignored) contains the input. */

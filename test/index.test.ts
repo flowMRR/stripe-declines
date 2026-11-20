@@ -377,9 +377,9 @@ test("when advice_code decides the verdict, the customer message and the email f
   assert.equal(adviceText("Do Not Try Again", "fr-FR")!.customer, ADVICE_TEXT.do_not_try_again.fr.customer);
   assert.equal(adviceText("confirm_card_data", "xx" as "en").customer, ADVICE_TEXT.confirm_card_data.en.customer);
   // Every code × advice × locale: the entries come from the advice when it applies and
-  // agree with the verdict. On a blocked card (fraud) the advice can only make the
-  // verdict stricter: try_again_later on a stolen_card keeps "no" and the code's own entries.
-  const STRICTNESS = { no: 0, maybe: 1, likely: 2 } as const;
+  // agree with the verdict. On a blocked card (fraud) only do_not_try_again applies:
+  // try_again_later would loosen the verdict and confirm_card_data would have the
+  // customer retry the same card, so a stolen_card keeps "no" and its own entries.
   const VERDICT = { do_not_try_again: "no", try_again_later: "likely", confirm_card_data: "no" } as const;
   for (const d of DECLINE_CODES) for (const a of advices) for (const l of ["en", "fr"] as const) {
     const x = explain(JSON.stringify({ decline_code: d.code, advice_code: a }), l)!;
@@ -387,7 +387,7 @@ test("when advice_code decides the verdict, the customer message and the email f
     assert.ok(x, where);
     assert.equal(x.code, d.code, where);
     assert.equal(x.advice, a, `${where}: the advice in the input is always reported`);
-    const applies = d.category !== "fraud" || STRICTNESS[VERDICT[a]] <= STRICTNESS[d.retry];
+    const applies = d.category !== "fraud" || a === "do_not_try_again";
     if (applies) {
       assert.equal(x.retrySource, "advice_code", where);
       assert.equal(x.retry, VERDICT[a], where);
@@ -396,7 +396,7 @@ test("when advice_code decides the verdict, the customer message and the email f
       assert.equal(x.action, ADVICE_TEXT[a][l].action, where);
       assert.equal(x.fixer, ADVICE_TEXT[a].fixer, where);
     } else {
-      assert.equal(x.retrySource, "code", `${where}: a looser advice does not apply to a blocked card`);
+      assert.equal(x.retrySource, "code", `${where}: only do_not_try_again applies to a blocked card`);
       assert.equal(x.retry, d.retry, where);
       assert.equal(x.customer, d[l].customer, where);
       assert.equal(x.email, templateFor(d, l), where);
@@ -445,9 +445,21 @@ test("when advice_code decides the verdict, the customer message and the email f
   assert.equal(stolen.fixer, "customer");
   assert.doesNotMatch(stolen.customer + stolen.email + stolen.action, /try again|automatically|smart retries/i);
   assert.doesNotMatch(stolen.customer, /stolen/i);
-  // A stricter advice still applies to a blocked card.
-  assert.equal(explain('{"decline_code":"lost_card","advice_code":"confirm_card_data"}')!.retrySource, "advice_code");
+  // do_not_try_again still applies to a blocked card; confirm_card_data does not, since
+  // it would have the customer re-enter and retry a card that has to be replaced.
   assert.equal(explain('{"decline_code":"fraudulent","advice_code":"do_not_try_again"}')!.customer, ADVICE_TEXT.do_not_try_again.en.customer);
+  const reenter = explain('{"decline_code":"lost_card","advice_code":"confirm_card_data"}')!;
+  assert.equal(reenter.retrySource, "code");
+  assert.equal(reenter.advice, "confirm_card_data");
+  assert.doesNotMatch(reenter.customer + reenter.email + reenter.action, /enter them again|re-enter|security code/i);
+  assert.match(reenter.customer, /another card/);
+  // Object prototype keys are not advice codes, and never make a lookup throw.
+  for (const bad of ["constructor", "__proto__", "hasOwnProperty", "toString"]) {
+    assert.equal(findAdvice(`{"advice_code":"${bad}"}`), null, bad);
+    assert.equal(adviceText(bad), undefined, bad);
+    assert.equal(explain(`{"decline_code":"do_not_honor","advice_code":"${bad}"}`)!.retrySource, "code", bad);
+    assert.equal(customerMessage("do_not_honor", "en", bad), DECLINE_BY_CODE.get("do_not_honor")!.en.customer, bad);
+  }
   // customerMessage: the README's checkout line, an unknown advice, a message, a label.
   assert.equal(customerMessage("do_not_honor", "en", "do_not_try_again"), ADVICE_TEXT.do_not_try_again.en.customer);
   assert.equal(customerMessage("do_not_honor", "fr", "Do Not Try Again"), ADVICE_TEXT.do_not_try_again.fr.customer);
