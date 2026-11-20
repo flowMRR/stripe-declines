@@ -41,10 +41,10 @@ explain("hello");                                                // null
 import { customerMessage } from "stripe-declines";
 
 // On a failed payment at checkout, after Stripe's error comes back:
-const message = customerMessage(error.decline_code ?? error.code, "fr") ?? genericMessage;
+const message = customerMessage(error.decline_code ?? error.code, "fr", error.advice_code) ?? genericMessage;
 ```
 
-Every function accepts a missing or non-string input and finds nothing (`null`, `undefined` or `[]`) rather than throwing, so the line above is safe when the error carries neither field. The locale is `"en"` or `"fr"`; `fr-FR` counts as French and anything else as English.
+`customerMessage` takes what `explain` takes (a code, a label, Stripe's message, a whole error or payload) and, for a bare code, the attempt's `advice_code` as a third argument, so the message agrees with the verdict for that attempt. Every function accepts a missing or non-string input and finds nothing (`null`, `undefined` or `[]`) rather than throwing, so the line above is safe when the error carries neither field. The locale is `"en"` or `"fr"`; `fr-FR` counts as French and anything else as English.
 
 The lower-level pieces:
 
@@ -52,7 +52,8 @@ The lower-level pieces:
 import { findCode, findNote, lookup, suggest, templateFor, DECLINE_CODES, CATEGORIES } from "stripe-declines";
 
 lookup("Do Not Honor");          // the entry for do_not_honor (spaces and hyphens accepted), else undefined
-customerMessage("lost_card");    // "Your bank declined this card. If you have received a replacement card, please use it, …"
+customerMessage("lost_card");    // "Your card was declined. Please pay with another card, …", else null
+customerMessage("do_not_honor", "en", "do_not_try_again");  // the "use another card" message, not "try again later"
 findCode(pastedText);            // the entry for whatever decline the text names, else null
 findNote(pastedText);            // a Radar block or another known non-decline value, else null
 suggest("expir");                // entries whose code or label contains the input
@@ -95,18 +96,20 @@ Every code has a `category`, a `retry` verdict and a `fixer`. The category sets 
 
 `retry` is `likely`, `maybe` or `no`; `fixer` is `bank`, `customer` or `you`. The verdicts follow the recovery rules FlowMRR applies to real failed invoices: a code the backend treats as hard or needing a card update is never "retry likely", and a code left to Smart Retries is never "no".
 
-`no` covers two situations, and the `category` tells them apart: the bank will refuse the same card until the customer changes something (`card`, `limit`, `restricted`, `auth`), or the retry is not advised because Stripe or the network asked you not to (`fraud`, and `merchant` until you fix your side). Stripe does not publish a hard/soft list of codes. What it does give, per attempt, is `advice_code` (`do_not_try_again`, `try_again_later`, `confirm_card_data`): when the text you pass to `explain` carries one, `retry` follows it and `retrySource` says so.
+`no` covers two situations, and the `category` tells them apart: the bank will refuse the same card until the customer changes something (`card`, `limit`, `restricted`, `auth`), or the retry is not advised because Stripe or the network asked you not to (`fraud`, and `merchant` until you fix your side). Stripe does not publish a hard/soft list of codes. What it does give, per attempt, is `advice_code` (`do_not_try_again`, `try_again_later`, `confirm_card_data`): when the text you pass to `explain` carries one, `retry` follows it and `retrySource` says so. So do `action`, `fixer`, `customer` and `email`: the code's own entries describe its general case, and a `do_not_honor` under `do_not_try_again` must not say "retry on Stripe's schedule" or tell the customer to try again later. `adviceText(advice, locale)` gives those entries on their own. One exception: on a blocked or withdrawn card (the `fraud` category) the advice can only make the verdict stricter, never looser, because card networks penalise retries on those codes; a `try_again_later` on a `stolen_card` keeps "no", `retrySource` stays `code` and `advice` still reports what the input carried.
 
 ```ts
 explain('{"decline_code":"do_not_honor","advice_code":"do_not_try_again"}');
-// { code: "do_not_honor", retry: "no", retrySource: "advice_code", advice: "do_not_try_again", … }
+// { code: "do_not_honor", retry: "no", retrySource: "advice_code", advice: "do_not_try_again", fixer: "customer",
+//   action: "Don't retry this card. Ask the customer for another payment method.",
+//   customer: "Your bank declined this card for this payment. Please pay with another card or payment method.", … }
 ```
 
 Where Stripe's reference says only "declined for an unknown reason" (`do_not_honor`, `stop_payment_order`, the `revocation_*` codes, `security_violation`…), `meaning` says so first and gives the usual card-network reading second, and the customer message does not assert what Stripe does not confirm.
 
 ## The data
 
-`codes.json` is shipped in the package (`import codes from "stripe-declines/codes.json"`) so other languages can read it. It holds the eight categories (label, summary and customer email, `en` and `fr`), the 51 codes (50 decline codes plus `card_declined`, Stripe's error code for any card decline, kept because people paste it) and four "notes" for values people paste that are not decline codes (`highest_risk_level`, `elevated_risk_level`, `rule` and `low_probability_of_authorization`, the Radar and Adaptive Acceptance blocks). `reviewed` is the date it was last checked against [Stripe's decline-code reference](https://stripe.com/docs/declines/codes).
+`codes.json` is shipped in the package (`import codes from "stripe-declines/codes.json"`) so other languages can read it. It holds the eight categories (label, summary and customer email, `en` and `fr`), the action, fixer, customer message and email for each of the three `advice_code` values, the 51 codes (50 decline codes plus `card_declined`, Stripe's error code for any card decline, kept because people paste it) and four "notes" for values people paste that are not decline codes (`highest_risk_level`, `elevated_risk_level`, `rule` and `low_probability_of_authorization`, the Radar and Adaptive Acceptance blocks). `reviewed` is the date it was last checked against [Stripe's decline-code reference](https://stripe.com/docs/declines/codes).
 
 Each code has a long-form guide on FlowMRR for the 22 most common ones (`guideUrl(code)`), for example [do_not_honor](https://flow-mrr.com/en/tools/card-decline/do-not-honor), [insufficient_funds](https://flow-mrr.com/en/tools/card-decline/insufficient-funds) and [card_velocity_exceeded](https://flow-mrr.com/en/tools/card-decline/card-velocity-exceeded).
 

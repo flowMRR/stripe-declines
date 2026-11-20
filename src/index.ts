@@ -59,6 +59,16 @@ export type CategoryText = { label: string; summary: string; template: string };
 export type CategoryInfo = Record<Locale, CategoryText>;
 
 /**
+ * What to do, who can fix it and what the customer is told when Stripe's
+ * `advice_code` decides the verdict for an attempt: the code's own `action`,
+ * `fixer`, `customer` text and email describe the code's general case, and would say
+ * "retry on Stripe's schedule" or promise a retry under `do_not_try_again`, or ask
+ * for a new card under `try_again_later`. Written like the code texts: neutral, no
+ * placeholders in `customer`, the email's placeholders in `template`.
+ */
+export type AdviceText = { fixer: Fixer } & Record<Locale, { action: string; customer: string; template: string }>;
+
+/**
  * Values people paste that are not decline codes but have a known meaning.
  * `highest_risk_level` is the charge's `outcome.reason` when Stripe Radar itself
  * blocked the payment (`outcome.risk_level: "highest"`), not an issuer decline.
@@ -68,6 +78,7 @@ export type DeclineNote = { term: string; field?: string; categories: DeclineCat
 /** Date the data was last checked against Stripe's decline-code reference (YYYY-MM-DD). */
 export const REVIEWED: string = data.reviewed;
 export const CATEGORIES = data.categories as Record<DeclineCategory, CategoryInfo>;
+export const ADVICE_TEXT = data.advice as Record<Advice, AdviceText>;
 export const DECLINE_CODES = data.codes as DeclineCode[];
 export const DECLINE_NOTES = data.notes as DeclineNote[];
 export const DECLINE_BY_CODE: ReadonlyMap<string, DeclineCode> = new Map(DECLINE_CODES.map((d) => [d.code, d]));
@@ -98,13 +109,6 @@ export function templateFor(d: DeclineCode | null | undefined, locale: Locale | 
   const l = loc(locale);
   return d.template?.[l] ?? CATEGORIES[d.category][l].template;
 }
-
-/**
- * The short customer-facing message for a code, to show at checkout, on a billing
- * page or in a support reply; `undefined` when the code is unknown or missing.
- * Accepts the same spellings as `lookup`.
- */
-export const customerMessage = (code: string | null | undefined, locale: Locale | string = "en"): string | undefined => lookup(code)?.[loc(locale)].customer;
 
 /** `do not honor`, `Do-Not-Honor` and `do_not_honor` name the same code. */
 const normalise = (value: string) => value.trim().toLowerCase().replace(/[\s-]+/g, "_");
@@ -201,6 +205,54 @@ function findCodeIn(input: string): DeclineCode | null {
 }
 
 const ADVICE: Record<Advice, Retry> = { do_not_try_again: "no", try_again_later: "likely", confirm_card_data: "no" };
+const STRICTNESS: Record<Retry, number> = { no: 0, maybe: 1, likely: 2 };
+
+/**
+ * Whether Stripe's `advice_code` decides the verdict for this code. It does, except
+ * on a blocked or withdrawn card (`fraud` category: lost, stolen, picked up,
+ * fraudulent, stop payment, revoked authorisation, security violation), where it
+ * can only make the verdict stricter, never looser: card networks penalise retries
+ * on those codes, so a `try_again_later` on a `stolen_card` keeps "no".
+ */
+const adviceApplies = (d: DeclineCode, advice: Advice): boolean => d.category !== "fraud" || STRICTNESS[ADVICE[advice]] <= STRICTNESS[d.retry];
+
+/**
+ * The short customer-facing message for a decline, to show at checkout, on a billing
+ * page or in a support reply. Accepts what `explain` accepts (a code in any spelling,
+ * a label, Stripe's own message, an error or a pasted payload) and, for a bare code,
+ * the attempt's `advice_code` as a third argument: the advice decides the message
+ * the way it decides the verdict, so `do_not_honor` with `do_not_try_again` never
+ * says "please try again later" (and a blocked card never gets a softer message).
+ * `null` when nothing in the input is a decline.
+ */
+export function customerMessage(input: string | null | undefined, locale: Locale | string = "en", advice?: string | null): string | null {
+  const d = findCode(input);
+  if (!d) return null;
+  const given = normalise(text(advice));
+  const a = findAdvice(input) ?? (given in ADVICE ? (given as Advice) : undefined);
+  const applied = a && adviceApplies(d, a) ? a : undefined;
+  const l = loc(locale);
+  return applied ? ADVICE_TEXT[applied][l].customer : d[l].customer;
+}
+
+export type AdviceExplanation = { action: string; fixer: Fixer; customer: string; email: string };
+
+/**
+ * The action, the fixer, the customer message and the email for an attempt whose
+ * verdict comes from Stripe's `advice_code`: `explain` uses them in place of the
+ * code's own, so a `do_not_honor` with `do_not_try_again` never says "retry on
+ * Stripe's schedule" or tells the customer to try again later. `undefined` for
+ * anything that is not one of the three advice codes.
+ */
+export function adviceText(advice: Advice, locale?: Locale | string): AdviceExplanation;
+export function adviceText(advice: string | null | undefined, locale?: Locale | string): AdviceExplanation | undefined;
+export function adviceText(advice: string | null | undefined, locale: Locale | string = "en"): AdviceExplanation | undefined {
+  const value = normalise(text(advice));
+  if (!(value in ADVICE_TEXT)) return undefined;
+  const entry = ADVICE_TEXT[value as Advice];
+  const t = entry[loc(locale)];
+  return { action: t.action, fixer: entry.fixer, customer: t.customer, email: t.template };
+}
 
 /**
  * Stripe's `advice_code` in a pasted error, Charge or webhook payload, when it holds
@@ -242,18 +294,28 @@ export type Explanation = {
   category: DeclineCategory;
   categoryLabel: string;
   categorySummary: string;
+  /** Who can make the next attempt succeed; follows the `advice_code` when there is one. */
   fixer: Fixer;
   retry: Retry;
-  /** Where `retry` comes from: Stripe's `advice_code` in the input when there is one, else the code's table entry. */
+  /**
+   * Where `retry` comes from: Stripe's `advice_code` in the input when there is one
+   * and it applies, else the code's table entry. On a blocked card (`fraud`) an
+   * advice that would loosen the verdict does not apply: `advice` is still reported,
+   * `retrySource` says `code`.
+   */
   retrySource: "advice_code" | "code";
-  /** Stripe's `advice_code` when the input carried one. */
+  /** Stripe's `advice_code` when the input carried one, whether or not it applied. */
   advice?: Advice;
   label: string;
   meaning: string;
+  /** What to do next; follows the `advice_code` when there is one. */
   action: string;
-  /** Short message for the customer (checkout, billing page, support reply), no placeholders. */
+  /**
+   * Short message for the customer (checkout, billing page, support reply), no
+   * placeholders. Follows the `advice_code` when there is one (see `adviceText`).
+   */
   customer: string;
-  /** Customer email with `{name}`, `{product}`, `{link}` and `{company}` placeholders. */
+  /** Customer email with `{name}`, `{product}`, `{link}` and `{company}` placeholders; follows the `advice_code` too. */
   email: string;
   /** Long-form guide on flow-mrr.com, when there is one. */
   guide?: string;
@@ -262,7 +324,10 @@ export type Explanation = {
 /**
  * One call for the common case: a code, a label, a message or a pasted payload
  * in, a flat explanation out (`null` when nothing in the text is a decline).
- * When the payload carries Stripe's `advice_code`, `retry` follows it. A missing
+ * When the payload carries Stripe's `advice_code`, `retry` follows it, and so do
+ * `action`, `fixer`, `customer` and `email`: the code's own entries describe its
+ * general case and could contradict the verdict for this attempt. On a blocked card
+ * the advice can only make the verdict stricter (see `adviceApplies`). A missing
  * input gives `null`; an unknown locale gives English.
  */
 export function explain(input: string | null | undefined, locale: Locale | string = "en"): Explanation | null {
@@ -271,20 +336,22 @@ export function explain(input: string | null | undefined, locale: Locale | strin
   const l = loc(locale);
   const cat = CATEGORIES[d.category][l];
   const advice = findAdvice(input) ?? undefined;
+  const applied = advice && adviceApplies(d, advice) ? advice : undefined;
+  const advised = applied ? adviceText(applied, l) : undefined;
   return {
     code: d.code,
     category: d.category,
     categoryLabel: cat.label,
     categorySummary: cat.summary,
-    fixer: d.fixer,
-    retry: advice ? ADVICE[advice] : d.retry,
-    retrySource: advice ? "advice_code" : "code",
+    fixer: advised?.fixer ?? d.fixer,
+    retry: applied ? ADVICE[applied] : d.retry,
+    retrySource: applied ? "advice_code" : "code",
     ...(advice ? { advice } : {}),
     label: d[l].label,
     meaning: d[l].meaning,
-    action: d[l].action,
-    customer: d[l].customer,
-    email: templateFor(d, l),
+    action: advised?.action ?? d[l].action,
+    customer: advised?.customer ?? d[l].customer,
+    email: advised?.email ?? templateFor(d, l),
     guide: guideUrl(d.code, l),
   };
 }

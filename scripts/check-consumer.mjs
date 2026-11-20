@@ -72,7 +72,7 @@ try {
   `);
   const cjs = run(process.execPath, ["cjs.cjs"], { cwd: dir });
   const cjsOut = cjs.code === 0 ? JSON.parse(cjs.out.trim().split("\n").pop()) : null;
-  check("CommonJS require + JSON exports", !!cjsOut && cjsOut.len === 51 && cjsOut.codes === 51 && cjsOut.retry === "no" && cjsOut.de === "Lost card" && cjsOut.none === undefined && cjsOut.lookup === "do_not_honor", cjs.code === 0 ? "" : cjs.out.trim());
+  check("CommonJS require + JSON exports", !!cjsOut && cjsOut.len === 51 && cjsOut.codes === 51 && cjsOut.retry === "no" && cjsOut.de === "Lost card" && cjsOut.none === null && cjsOut.lookup === "do_not_honor", cjs.code === 0 ? "" : cjs.out.trim());
 
   // The CLI as installed: through the bin, with options, stdin, and exit codes.
   const bin = join(dir, "node_modules", "stripe-declines", "dist", "esm", "cli.js");
@@ -98,7 +98,7 @@ try {
   const sample = (importLine) => `${importLine}
     const x = explain("do_not_honor", "fr");
     const retry: "likely" | "maybe" | "no" | undefined = x?.retry;
-    const c: string | undefined = customerMessage(undefined as string | undefined, "fr-FR");
+    const c: string | null = customerMessage(undefined as string | undefined, "fr-FR", "do_not_try_again");
     const t: string = templateFor(DECLINE_CODES[0]!);
     const u: string | undefined = templateFor(undefined);
     const cat: Record<DeclineCategory, CategoryInfo> = CATEGORIES;

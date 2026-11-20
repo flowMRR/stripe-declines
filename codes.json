@@ -1,5 +1,46 @@
 {
   "reviewed": "2026-11-12",
+  "advice": {
+    "do_not_try_again": {
+      "fixer": "customer",
+      "en": {
+        "action": "Don't retry this card. Ask the customer for another payment method.",
+        "customer": "Your bank declined this card for this payment. Please pay with another card or payment method.",
+        "template": "Hi {name},\n\nYour bank declined the payment for {product} with the card on file, and it will not approve the same card for it. You can pay with another card or payment method here: {link}\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "action": "Ne réessayez pas cette carte. Demandez au client un autre moyen de paiement.",
+        "customer": "Votre banque a refusé cette carte pour ce paiement. Payez avec une autre carte ou un autre moyen de paiement.",
+        "template": "Bonjour {name},\n\nVotre banque a refusé le paiement pour {product} avec la carte enregistrée, et n'autorisera pas cette carte pour ce paiement. Vous pouvez payer avec une autre carte ou un autre moyen de paiement ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    "try_again_later": {
+      "fixer": "bank",
+      "en": {
+        "action": "Retry on Stripe's schedule. If it keeps failing, suggest the customer contacts their bank or uses another card.",
+        "customer": "Your bank could not approve this payment right now. Please try again later, or use another card. If it keeps failing, your bank can tell you why.",
+        "template": "Hi {name},\n\nYour bank could not approve our latest payment for {product} right now. This can be temporary, and we may try again automatically over the next few days. If it keeps failing, your bank can tell you why. You can also update or confirm your card here: {link}\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "action": "Suivez le calendrier de relance de Stripe. Si les échecs se répètent, invitez le client à contacter sa banque ou à utiliser une autre carte.",
+        "customer": "Votre banque n'a pas pu autoriser ce paiement pour le moment. Réessayez plus tard, ou utilisez une autre carte. Si le refus se répète, votre banque pourra vous en indiquer la raison.",
+        "template": "Bonjour {name},\n\nVotre banque n'a pas pu autoriser notre dernière tentative de paiement pour {product}. Ce refus peut être temporaire. Si les relances automatiques sont activées, une nouvelle tentative aura lieu dans les prochains jours. Si le refus se répète, votre banque pourra vous en indiquer la raison. Vous pouvez également vérifier ou mettre à jour votre carte ici : {link}\n\nMerci,\n{company}"
+      }
+    },
+    "confirm_card_data": {
+      "fixer": "customer",
+      "en": {
+        "action": "Ask the customer to re-enter or update their card details.",
+        "customer": "The card details could not be verified. Please check the card number, expiry date and security code, and enter them again.",
+        "template": "Hi {name},\n\nWe could not take the payment for {product} because the card details on file could not be verified. Please check the card number, expiry date and security code, or add another card, here: {link}\n\nThanks,\n{company}"
+      },
+      "fr": {
+        "action": "Demandez au client de saisir à nouveau ou de mettre à jour les informations de sa carte.",
+        "customer": "Les informations de la carte n'ont pas pu être vérifiées. Vérifiez le numéro, la date d'expiration et le code de sécurité, puis saisissez-les à nouveau.",
+        "template": "Bonjour {name},\n\nLe paiement pour {product} n'a pas pu être effectué car les informations de la carte enregistrée n'ont pas pu être vérifiées. Merci de vérifier le numéro, la date d'expiration et le code de sécurité, ou d'ajouter une autre carte, ici : {link}\n\nMerci,\n{company}"
+      }
+    }
+  },
   "categories": {
     "soft": {
       "en": {

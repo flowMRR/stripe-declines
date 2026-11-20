@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.3
+
+- On a blocked or withdrawn card (`fraud` category: lost, stolen, picked-up or fraudulent card, stop payment, revoked authorisation, security violation) the `advice_code` can only make the verdict stricter, never looser: `stolen_card` with `try_again_later` keeps "no", the customer fixer and the code's own neutral message and email (`retrySource: "code"`, `advice` still reported), since card networks penalise retries on those codes. The command line says "not applied: blocked card" in that case. A test covers every blocked-card code × every advice.
+- `customerMessage()` respects the `advice_code`: it accepts what `explain()` accepts (a code, a label, Stripe's message, a pasted payload) and, for a bare code, the attempt's advice as a third argument, `customerMessage(error.decline_code ?? error.code, locale, error.advice_code)`. It returns `null` when nothing matches, like `explain()`, where it returned `undefined`. A test checks every code × advice pair never promises a retry under a "no" verdict.
+
+## 0.2.2
+
+- When Stripe's `advice_code` decides the verdict, `explain()` now takes `action`, `fixer`, `customer` and `email` from the advice as well, not from the code: a `do_not_honor` with `do_not_try_again` used to say "retry on Stripe's schedule", name the bank as the fixer and tell the customer "please try again later" under a "do not retry" verdict, and a `confirm_card_data` used to do the same instead of asking for the card details. `codes.json` gains an `advice` block with the fixer, action, customer message and email for each of the three values (`en` and `fr`); `adviceText(advice, locale)` returns them. Tests check every code × advice pair against the verdict.
+
 ## 0.2.1
 
 - Every entry point accepts a missing, null or non-string input and finds nothing instead of throwing, so `customerMessage(error.decline_code ?? error.code) ?? fallback` is safe when neither field is set; `templateFor(undefined)` is `undefined`. An unknown locale falls back to English, and `fr-FR` or `FR` count as French.

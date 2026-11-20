@@ -48,7 +48,7 @@ export function run(argv: string[], stdin = ""): CliResult {
   if (customer && !email) return { out: x.customer + "\n", code: 0 };
   const lines = [
     `${x.code} — ${x.label}`,
-    `${locale === "fr" ? "Catégorie" : "Category"}: ${x.categoryLabel} (${x.category}) · ${locale === "fr" ? "retente" : "retry"}: ${x.retry}${x.advice ? ` (advice_code ${x.advice})` : ""} · ${locale === "fr" ? "qui corrige" : "who fixes it"}: ${x.fixer}`,
+    `${locale === "fr" ? "Catégorie" : "Category"}: ${x.categoryLabel} (${x.category}) · ${locale === "fr" ? "retente" : "retry"}: ${x.retry}${x.advice ? ` (advice_code ${x.advice}${x.retrySource === "code" ? (locale === "fr" ? ", non appliqué : carte bloquée" : ", not applied: blocked card") : ""})` : ""} · ${locale === "fr" ? "qui corrige" : "who fixes it"}: ${x.fixer}`,
     "",
     x.meaning,
     "",

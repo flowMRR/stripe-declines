@@ -7,6 +7,8 @@ import {
   DECLINE_NOTES,
   GUIDE_SLUGS,
   REVIEWED,
+  ADVICE_TEXT,
+  adviceText,
   customerMessage,
   explain,
   findAdvice,
@@ -77,7 +79,7 @@ test("a missing, null or non-string input finds nothing instead of throwing; an 
     assert.equal(findNote(bad as string), null, String(bad));
     assert.equal(findAdvice(bad as string), null, String(bad));
     assert.equal(lookup(bad as string), undefined, String(bad));
-    assert.equal(customerMessage(bad as string), undefined, String(bad));
+    assert.equal(customerMessage(bad as string), null, String(bad));
     assert.equal(guideUrl(bad as string), undefined, String(bad));
     assert.deepEqual(suggest(bad as string), [], String(bad));
   }
@@ -169,6 +171,7 @@ test("codes.json is clean text: no stray whitespace, every sentence ends, notes 
     if (d.template) texts.push([`${d.code}.template.${l}`, d.template[l]]);
   }
   for (const [cat, info] of Object.entries(CATEGORIES)) for (const l of ["en", "fr"] as const) for (const k of ["label", "summary", "template"] as const) texts.push([`${cat}.${l}.${k}`, info[l][k]]);
+  for (const [advice, info] of Object.entries(ADVICE_TEXT)) for (const l of ["en", "fr"] as const) for (const k of ["action", "customer", "template"] as const) texts.push([`advice.${advice}.${l}.${k}`, info[l][k]]);
   for (const [where, s] of texts) {
     assert.equal(s, s.trim(), `${where}: leading or trailing whitespace`);
     assert.doesNotMatch(s, /  |\t/, `${where}: double space or tab`);
@@ -232,7 +235,7 @@ test("codes Stripe documents as 'unknown reason' are not explained as certaintie
 test("the customer message of every code is short, self-contained and consistent with its verdict", () => {
   assert.equal(customerMessage("Expired card"), DECLINE_BY_CODE.get("expired_card")!.en.customer);
   assert.equal(customerMessage("expired_card", "fr"), DECLINE_BY_CODE.get("expired_card")!.fr.customer);
-  assert.equal(customerMessage("nope"), undefined);
+  assert.equal(customerMessage("nope"), null);
   for (const d of DECLINE_CODES) {
     for (const l of ["en", "fr"] as const) {
       const text = d[l].customer;
@@ -338,6 +341,127 @@ test("limit declines follow Stripe: another payment method, no retry", () => {
     assert.equal(DECLINE_BY_CODE.get(code)!.retry, "no", code);
   }
   assert.equal(DECLINE_BY_CODE.get("merchant_blacklist")!.category, "merchant");
+});
+
+test("when advice_code decides the verdict, the customer message and the email follow it, for every code", () => {
+  const advices = ["do_not_try_again", "try_again_later", "confirm_card_data"] as const;
+  // What a customer must never read under a "no" verdict: a retry, by them or by us.
+  const RETRY = { en: /try again|retry|automatically|we may try/i, fr: /réessa|nouvelle tentative|relance|tentative ultérieure/i };
+  // What a customer must never read under a "likely" verdict: that the card is dead or wrong.
+  // ("or use another card" as a fallback is fine; "add a new card" is not.)
+  const DEAD_CARD = { en: /new card|different card|cannot be used|expired|incorrect|not valid/i, fr: /nouvelle carte|ne peut pas être utilisée|expir|incorrect|pas valide/i };
+  for (const a of advices) for (const l of ["en", "fr"] as const) {
+    const t = adviceText(a, l);
+    assert.equal(t.customer, ADVICE_TEXT[a][l].customer);
+    assert.equal(t.email, ADVICE_TEXT[a][l].template);
+    assert.equal(t.action, ADVICE_TEXT[a][l].action);
+    assert.equal(t.fixer, ADVICE_TEXT[a].fixer);
+    assert.ok(["bank", "customer", "you"].includes(t.fixer), `${a}: fixer`);
+    // A "no" advice's action never tells you to retry (same rule as the codes' actions).
+    if (a !== "try_again_later") {
+      const action = t.action.toLowerCase().replace(/(do not|don't|never|not|ne) (count on a )?(retr\w*|réessayez)/g, "");
+      assert.doesNotMatch(action, /\bretr(y|ies|ying)\b|réessa|nouvelle tentative/, `${a} ${l}: ${t.action}`);
+    }
+    assert.ok(t.customer.length <= 220, `${a} ${l}: ${t.customer.length} chars`);
+    assert.doesNotMatch(t.customer, /\{[a-z]+\}/, `${a} ${l}: placeholder in the customer message`);
+    assert.match(t.email, /\{name\}[\s\S]*\{product\}[\s\S]*\{link\}[\s\S]*\{company\}/, `${a} ${l}: email placeholders`);
+    for (const s of [t.customer, t.email]) {
+      assert.doesNotMatch(s, /stripe|radar|decline_code|smart retries|advice_code/i, `${a} ${l}: names our side`);
+      assert.doesNotMatch(s, /lost|stolen|fraud|flagged|perdu|vol[ée]e?\b|signal[ée]e/i, `${a} ${l}: fraud wording`);
+      assert.doesNotMatch(s, /we will try again|we'll try again|we will retry|nous réessaierons|nous allons réessayer/i, `${a} ${l}: promises a retry`);
+    }
+  }
+  assert.equal(adviceText("nope"), undefined);
+  assert.equal(adviceText(null), undefined);
+  assert.equal(adviceText(undefined), undefined);
+  assert.equal(adviceText("Do Not Try Again", "fr-FR")!.customer, ADVICE_TEXT.do_not_try_again.fr.customer);
+  assert.equal(adviceText("confirm_card_data", "xx" as "en").customer, ADVICE_TEXT.confirm_card_data.en.customer);
+  // Every code × advice × locale: the entries come from the advice when it applies and
+  // agree with the verdict. On a blocked card (fraud) the advice can only make the
+  // verdict stricter: try_again_later on a stolen_card keeps "no" and the code's own entries.
+  const STRICTNESS = { no: 0, maybe: 1, likely: 2 } as const;
+  const VERDICT = { do_not_try_again: "no", try_again_later: "likely", confirm_card_data: "no" } as const;
+  for (const d of DECLINE_CODES) for (const a of advices) for (const l of ["en", "fr"] as const) {
+    const x = explain(JSON.stringify({ decline_code: d.code, advice_code: a }), l)!;
+    const where = `${d.code} + ${a} ${l}`;
+    assert.ok(x, where);
+    assert.equal(x.code, d.code, where);
+    assert.equal(x.advice, a, `${where}: the advice in the input is always reported`);
+    const applies = d.category !== "fraud" || STRICTNESS[VERDICT[a]] <= STRICTNESS[d.retry];
+    if (applies) {
+      assert.equal(x.retrySource, "advice_code", where);
+      assert.equal(x.retry, VERDICT[a], where);
+      assert.equal(x.customer, ADVICE_TEXT[a][l].customer, where);
+      assert.equal(x.email, ADVICE_TEXT[a][l].template, where);
+      assert.equal(x.action, ADVICE_TEXT[a][l].action, where);
+      assert.equal(x.fixer, ADVICE_TEXT[a].fixer, where);
+    } else {
+      assert.equal(x.retrySource, "code", `${where}: a looser advice does not apply to a blocked card`);
+      assert.equal(x.retry, d.retry, where);
+      assert.equal(x.customer, d[l].customer, where);
+      assert.equal(x.email, templateFor(d, l), where);
+      assert.equal(x.action, d[l].action, where);
+      assert.equal(x.fixer, d.fixer, where);
+    }
+    // Whatever decided it, the verdict is never looser than a blocked card's own.
+    if (d.category === "fraud") assert.equal(x.retry, "no", `${where}: a blocked card is never retried`);
+    // customerMessage agrees with explain, from a payload or from a bare code plus the advice.
+    assert.equal(customerMessage(JSON.stringify({ decline_code: d.code, advice_code: a }), l), x.customer, `${where}: customerMessage(payload)`);
+    assert.equal(customerMessage(d.code, l, a), x.customer, `${where}: customerMessage(code, locale, advice)`);
+    if (x.retry === "no") assert.doesNotMatch(customerMessage(d.code, l, a)!, /try again later|try again in|réessayez plus tard|réessayez dans/i, `${where}: customerMessage promises a retry under "no"`);
+    // The code's own texts are checked by their own test above; here, the advice texts.
+    if (!applies) continue;
+    if (x.retry === "no") {
+      assert.doesNotMatch(x.customer, RETRY[l], `${where}: the customer message promises a retry under "no"`);
+      assert.doesNotMatch(x.email, RETRY[l], `${where}: the email promises a retry under "no"`);
+    } else {
+      assert.doesNotMatch(x.customer, DEAD_CARD[l], `${where}: the customer message asks for a new card under "likely"`);
+    }
+  }
+  // The pair from the bug report: a soft code under do_not_try_again.
+  const never = explain('{"decline_code":"do_not_honor","advice_code":"do_not_try_again"}')!;
+  assert.equal(never.retry, "no");
+  assert.equal(never.fixer, "customer", "the advice puts the customer in charge, not the bank");
+  assert.doesNotMatch(never.action, /Stripe's schedule/);
+  assert.match(never.action, /^Don't retry this card\./);
+  assert.doesNotMatch(never.customer, /try again/i);
+  assert.doesNotMatch(never.email, /try again|automatically/i);
+  assert.match(never.customer, /another card/);
+  // confirm_card_data: check the details, no "later".
+  const confirm = explain('{"decline_code":"do_not_honor","advice_code":"confirm_card_data"}', "en")!;
+  assert.match(confirm.customer, /check the card number, expiry date and security code/i);
+  assert.doesNotMatch(confirm.customer, /later/i);
+  assert.match(explain('{"decline_code":"generic_decline","advice_code":"confirm_card_data"}', "fr")!.customer, /date d'expiration/);
+  // try_again_later on a dead card: the advice wins, the customer is told to try later.
+  const later = explain('{"decline_code":"expired_card","advice_code":"try_again_later"}')!;
+  assert.equal(later.retry, "likely");
+  assert.match(later.customer, /try again later/i);
+  // try_again_later on a stolen card: networks penalise retries on these codes, so the
+  // advice does not loosen the verdict; the customer still sees a generic decline.
+  const stolen = explain('{"decline_code":"stolen_card","advice_code":"try_again_later"}')!;
+  assert.equal(stolen.retry, "no");
+  assert.equal(stolen.retrySource, "code");
+  assert.equal(stolen.advice, "try_again_later");
+  assert.equal(stolen.fixer, "customer");
+  assert.doesNotMatch(stolen.customer + stolen.email + stolen.action, /try again|automatically|smart retries/i);
+  assert.doesNotMatch(stolen.customer, /stolen/i);
+  // A stricter advice still applies to a blocked card.
+  assert.equal(explain('{"decline_code":"lost_card","advice_code":"confirm_card_data"}')!.retrySource, "advice_code");
+  assert.equal(explain('{"decline_code":"fraudulent","advice_code":"do_not_try_again"}')!.customer, ADVICE_TEXT.do_not_try_again.en.customer);
+  // customerMessage: the README's checkout line, an unknown advice, a message, a label.
+  assert.equal(customerMessage("do_not_honor", "en", "do_not_try_again"), ADVICE_TEXT.do_not_try_again.en.customer);
+  assert.equal(customerMessage("do_not_honor", "fr", "Do Not Try Again"), ADVICE_TEXT.do_not_try_again.fr.customer);
+  assert.equal(customerMessage("do_not_honor", "en", "nonsense"), DECLINE_BY_CODE.get("do_not_honor")!.en.customer);
+  assert.equal(customerMessage("do_not_honor", "en", null), DECLINE_BY_CODE.get("do_not_honor")!.en.customer);
+  assert.equal(customerMessage("stolen_card", "en", "try_again_later"), DECLINE_BY_CODE.get("stolen_card")!.en.customer, "a blocked card keeps its neutral message");
+  assert.equal(customerMessage("nope", "en", "do_not_try_again"), null);
+  assert.equal(customerMessage("Your card has insufficient funds."), DECLINE_BY_CODE.get("insufficient_funds")!.en.customer);
+  assert.equal(customerMessage("Carte expirée", "fr"), DECLINE_BY_CODE.get("expired_card")!.fr.customer);
+  // Without an advice_code, the code's own entries, unchanged.
+  assert.equal(explain("do_not_honor")!.customer, DECLINE_BY_CODE.get("do_not_honor")!.en.customer);
+  assert.equal(explain("do_not_honor")!.action, DECLINE_BY_CODE.get("do_not_honor")!.en.action);
+  assert.equal(explain("do_not_honor")!.fixer, "bank");
+  assert.equal(explain("do_not_honor")!.email, templateFor(DECLINE_BY_CODE.get("do_not_honor")!, "en"));
 });
 
 test("customer emails never promise what some code in their category contradicts", () => {
